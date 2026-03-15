@@ -66,6 +66,22 @@ local function sendMedicBill(targetPlayer, amount, billName)
 	end
 end
 
+local function getMedicActionItem(actionType)
+	local required = Config and Config.RequiredMedicItems and Config.RequiredMedicItems[actionType] or nil
+	local itemName = (required and required.name) or 'ag_medikit'
+	local itemLabel = (required and required.label) or itemName
+	return itemName, itemLabel
+end
+
+local function canUseMedicActionItem(actionType)
+	local itemName, itemLabel = getMedicActionItem(actionType)
+	if _CHKHASITEM(itemName) <= 0 then
+		exports['pNotify']:SendNotification({ text = ('You do not have %s.'):format(itemLabel), type = 'error', timeout = 3000 })
+		return false, itemName
+	end
+	return true, itemName
+end
+
 
 local function getBillingMenuConfig()
 	local defaults = {
@@ -167,26 +183,22 @@ local function runHealAnimation(callback)
 end
 
 local function doSingleRevive(targetPlayer, billAmount)
-	if _CHKHASITEM('ag_medikit') <= 0 then
-		exports['pNotify']:SendNotification({ text = 'You do not have medikit.', type = 'error', timeout = 3000 })
-		return
-	end
+	local canUseItem, reviveItem = canUseMedicActionItem('revive')
+	if not canUseItem then return end
 
 	local targetPed = GetPlayerPed(targetPlayer)
 	if not IsPedDeadOrDying(targetPed, 1) then return end
 
 	runReviveAnimation(function()
-		TriggerServerEvent('esx_ambulancejob:removeItem', 'ag_medikit')
+		TriggerServerEvent('esx_ambulancejob:removeItem', reviveItem)
 		TriggerServerEvent('esx_ambulancejob:revive', GetPlayerServerId(targetPlayer))
 		sendMedicBill(targetPlayer, billAmount, "Fine: Revive")
 	end)
 end
 
 local function doMassRevive(radius, billAmount)
-	if _CHKHASITEM('ag_medikit') <= 0 then
-		exports['pNotify']:SendNotification({ text = 'You do not have medikit.', type = 'error', timeout = 3000 })
-		return
-	end
+	local canUseItem, reviveItem = canUseMedicActionItem('revive')
+	if not canUseItem then return end
 
 	local nearbyPlayers = ESX.Game.GetPlayersInArea(GetEntityCoords(PlayerPedId()), radius or 5.0)
 	local deadTargets = {}
@@ -203,7 +215,7 @@ local function doMassRevive(radius, billAmount)
 	end
 
 	runReviveAnimation(function()
-		TriggerServerEvent('esx_ambulancejob:removeItem', 'ag_medikit')
+		TriggerServerEvent('esx_ambulancejob:removeItem', reviveItem)
 		for _, playerId in ipairs(deadTargets) do
 			TriggerServerEvent('esx_ambulancejob:revive', GetPlayerServerId(playerId))
 			sendMedicBill(playerId, billAmount, "Fine: Mass Revive")
@@ -212,26 +224,22 @@ local function doMassRevive(radius, billAmount)
 end
 
 local function doSingleHeal(targetPlayer, billAmount)
-	if _CHKHASITEM('ag_medikit') <= 0 then
-		exports['pNotify']:SendNotification({ text = 'You do not have medikit.', type = 'error', timeout = 3000 })
-		return
-	end
+	local canUseItem, healItem = canUseMedicActionItem('heal')
+	if not canUseItem then return end
 
 	local targetPed = GetPlayerPed(targetPlayer)
 	if GetEntityHealth(targetPed) <= 0 then return end
 
 	runHealAnimation(function()
-		TriggerServerEvent('esx_ambulancejob:removeItem', 'ag_medikit')
+		TriggerServerEvent('esx_ambulancejob:removeItem', healItem)
 		TriggerServerEvent('esx_ambulancejob:heal', GetPlayerServerId(targetPlayer), 'big')
 		sendMedicBill(targetPlayer, billAmount, "Fine: Heal")
 	end)
 end
 
 local function doMassHeal(radius, billAmount)
-	if _CHKHASITEM('ag_medikit') <= 0 then
-		exports['pNotify']:SendNotification({ text = 'You do not have medikit.', type = 'error', timeout = 3000 })
-		return
-	end
+	local canUseItem, healItem = canUseMedicActionItem('heal')
+	if not canUseItem then return end
 
 	local nearbyPlayers = ESX.Game.GetPlayersInArea(GetEntityCoords(PlayerPedId()), radius or 5.0)
 	local aliveTargets = {}
@@ -248,7 +256,7 @@ local function doMassHeal(radius, billAmount)
 	end
 
 	runHealAnimation(function()
-		TriggerServerEvent('esx_ambulancejob:removeItem', 'ag_medikit')
+		TriggerServerEvent('esx_ambulancejob:removeItem', healItem)
 		for _, playerId in ipairs(aliveTargets) do
 			TriggerServerEvent('esx_ambulancejob:heal', GetPlayerServerId(playerId), 'big')
 			sendMedicBill(playerId, billAmount, "Fine: Mass Heal")
@@ -1091,15 +1099,30 @@ end
 function OpenPharmacyMenu()
 	ESX.UI.Menu.CloseAll()
 
+	local elements = {}
+	local pharmacyItems = (Config and Config.PharmacyItems) or {}
+
+	for _, itemData in ipairs(pharmacyItems) do
+		table.insert(elements, {
+			label = ('<i class="fa-sharp fa-solid fa-dollar-sign"></i>  :  %s'):format(itemData.label or itemData.item),
+			value = itemData.item,
+			count = tonumber(itemData.count) or 1
+		})
+	end
+
+	if #elements == 0 then
+		elements = {
+			{ label = '<i class="fa-sharp fa-solid fa-dollar-sign"></i>  :  First Aid Kit', value = 'ag_medikit', count = 1 },
+			{ label = '<i class="fa-sharp fa-solid fa-dollar-sign"></i>  :  Oxygen Mask', value = 'ag_scuba', count = 1 },
+		}
+	end
+
 	ESX.UI.Menu.Open('default', GetCurrentResourceName(), 'pharmacy', {
 		title    = _U('pharmacy_menu_title'),
 		align    = 'top-right',
-		elements = {
-			{ label = '<i class="fa-sharp fa-solid fa-dollar-sign"></i>  :  First Aid Kit', value = 'ag_medikit' },
-			{ label = '<i class="fa-sharp fa-solid fa-dollar-sign"></i>  :  Oxygen Mask',   value = 'ag_scuba' },
-		}
+		elements = elements
 	}, function(data, menu)
-		TriggerServerEvent('esx_ambulancejob:giveItem', data.current.value)
+		TriggerServerEvent('esx_ambulancejob:giveItem', data.current.value, tonumber(data.current.count) or 1)
 	end, function(data, menu)
 		safeCloseMenu(menu)
 	end)
