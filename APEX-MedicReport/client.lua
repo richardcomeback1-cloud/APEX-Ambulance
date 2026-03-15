@@ -193,6 +193,7 @@ function ScriptWork()
 			end
 			newdata.time = newdata.servertime
 			newdata.remain = tonumber(newdata.remain) or Config["DefaultCaseRemainSeconds"] or 2700
+			newdata.pressedCount = tonumber(newdata.pressedCount) or 1
 			newdata.remaintext = string.format("%02d:%02d", math.floor(newdata.remain / 60), newdata.remain % 60)
 			table.insert(AlertData, newdata)
 			if newdata.caseid then
@@ -203,7 +204,7 @@ function ScriptWork()
 	end)
 
 	RegisterNetEvent(scriptName..':UpdateCase')
-	AddEventHandler(scriptName..':UpdateCase', function(caseid,status,text,ac)
+	AddEventHandler(scriptName..':UpdateCase', function(caseid,status,text,ac,pressedCount)
 		if ESX.GetPlayerData().job.name == "ambulance" then
 			if status == -1 then
 				AlertData = {}
@@ -220,6 +221,7 @@ function ScriptWork()
 					else
 						targetCase.text = text
 						targetCase.status = status
+						targetCase.pressedCount = tonumber(pressedCount) or targetCase.pressedCount
 						if status == 2 and ac ~= nil then
 							targetCase.ac = ac
 						end
@@ -234,6 +236,7 @@ function ScriptWork()
 							else
 								AlertData[k].text = text
 								AlertData[k].status = status
+								AlertData[k].pressedCount = tonumber(pressedCount) or AlertData[k].pressedCount
 								if status == 2 and ac ~= nil then
 									AlertData[k].ac = ac
 								end
@@ -315,6 +318,7 @@ function ScriptWork()
 			for _, caseData in ipairs(cases) do
 				caseData.time = caseData.servertime or os.time()
 				caseData.remain = tonumber(caseData.remain) or Config["DefaultCaseRemainSeconds"] or 2700
+				caseData.pressedCount = tonumber(caseData.pressedCount) or 1
 				caseData.remaintext = ConvertSecondsToClock(caseData.remain)
 				table.insert(AlertData, caseData)
 				if caseData.caseid then
@@ -528,7 +532,7 @@ function ScriptWork()
 		end)
 	end)
 
-	RegisterNUICallback('RemoveAll', function(data)
+	RegisterNUICallback('RemoveAll', function(data, cb)
 		if not Waiting then
 			Waiting = true
 
@@ -544,6 +548,8 @@ function ScriptWork()
 			Citizen.Wait(1000)
 			Waiting = false
 		end
+
+		if cb then cb('ok') end
 	end)
 
 	RegisterNUICallback('addblacklistnumber', function(data)

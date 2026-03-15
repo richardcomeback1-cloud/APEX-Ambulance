@@ -48,7 +48,9 @@ $(function () {
 
                     const detailEl = $(`.case-owner-detail[data-caseid=\"${caseId}\"]`);
                     if (detailEl.length && caseData) {
-                        detailEl.html(`${caseData.caseid || "-"} | [${caseTimeData.remaintext || "00:00"}]`);
+                        const pressCount = Number(caseData.pressedCount || 1);
+                        const pressText = pressCount > 1 ? ` | X${pressCount}` : '';
+                        detailEl.html(`${caseData.caseid || "-"} | [${caseTimeData.remaintext || "00:00"}]${pressText}`);
                     }
                 });
             }
@@ -142,7 +144,9 @@ $(function () {
             if (showidcase) {
                 let text = v.text || ""
                 if (v.status == 1) {
-                    text = '<span style="color:#ff686880;">ต้องการความช่วยเหลือ</span>'
+                    const pressCount = Number(v.pressedCount || 1)
+                    const pressText = pressCount > 1 ? ` X${pressCount}` : ''
+                    text = `<span style="color:#ff686880;">${v.text || "ต้องการความช่วยเหลือ"}${pressText}</span>`
                 }
                 if (v.status == 2) {
                     text = '<span style="color:#ffbc00b8;">'+(v.text || "กำลังไป")+'</span>'
@@ -153,7 +157,9 @@ $(function () {
 
                 let caseOwner = v.name || "ไม่ทราบชื่อ"
                 let caseRemain = v.remaintext || "00:00"
-                let caseOwnerDetail = `${v.caseid || "-"} | [${caseRemain}]`
+                let pressCount = Number(v.pressedCount || 1)
+                let pressText = pressCount > 1 ? ` | X${pressCount}` : ''
+                let caseOwnerDetail = `${v.caseid || "-"} | [${caseRemain}]${pressText}`
 
                 $(".caselist").append(`
                     <div class="casevalue status-${v.status}" data-caseid="${v.caseid}">
@@ -383,49 +389,19 @@ $(function () {
     //     ClickSound.play();
     // })
 
-    const button = document.querySelector('.removeall'); // ใช้คลาส btn_maincraft
+    let isRemovingAll = false;
+    $(".removeall").on('click', function () {
+        if (isRemovingAll) return;
+        isRemovingAll = true;
 
-    let holdTimeout; // ตัวจับเวลาแบบครบกำหนด
-    let progressInterval; // ตัวจับเวลาสำหรับ progress
-    let elapsedTime = 0; // เวลาที่ผ่านไปในหน่วย ms
-    let isHolding = false; // ตัวแปรตรวจสอบสถานะการกดค้าง
+        $(".loadremoveall").css({ "width": "100%" });
+        $.post('https://APEX-MedicReport/RemoveAll', JSON.stringify({}));
+        ClickSound.play();
 
-    button.addEventListener('mousedown', () => {
-        if (isHolding) return; // ป้องกันการเรียกซ้ำ
-        isHolding = true;
-        elapsedTime = 0; // รีเซ็ตเวลา
-
-        // เริ่มจับเวลาสำหรับ progress
-        progressInterval = setInterval(() => {
-            elapsedTime += 100; // เพิ่มเวลาในหน่วย ms
-            const progress = Math.min((elapsedTime / 5000) * 100, 100);
-            $(".loadremoveall").css({ "width": `${progress.toFixed(2)}%` });
-        }, 100); // อัพเดตทุก 100ms
-
-        // เริ่มจับเวลาเมื่อกดปุ่ม
-        holdTimeout = setTimeout(() => {
-            if (!isHolding) return; // ตรวจสอบอีกครั้งหากสถานะไม่ใช่การกดค้าง
-            ClickSound.pause();
+        setTimeout(function() {
             $(".loadremoveall").css({ "width": "0%" });
-            clearInterval(progressInterval); // หยุดอัพเดต progress
-
-            $.post('https://APEX-MedicReport/RemoveAll', JSON.stringify({}));
-            ClickSound.play();
-
-            isHolding = false; // รีเซ็ตสถานะ
-        }, 5000);
+            isRemovingAll = false;
+        }, 350);
     });
-
-    const stopHolding = () => {
-        if (!isHolding) return; // ถ้าไม่ได้กดค้างก็ไม่ต้องทำอะไร
-        clearTimeout(holdTimeout); // ยกเลิกตัวจับเวลาหลัก
-        clearInterval(progressInterval); // ยกเลิกการอัพเดต progress
-        ClickSound.pause();
-        $(".loadremoveall").css({ "width": "0%" });
-        isHolding = false; // รีเซ็ตสถานะ
-    };
-
-    button.addEventListener('mouseup', stopHolding);
-    button.addEventListener('mouseleave', stopHolding);
 
 })
