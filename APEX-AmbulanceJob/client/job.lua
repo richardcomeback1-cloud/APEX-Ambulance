@@ -62,7 +62,7 @@ end
 
 local function sendMedicBill(targetPlayer, amount, billName)
 	if amount and amount > 0 and targetPlayer and targetPlayer ~= -1 then
-		exports["iSpecial_Billing"]:SentBill(GetPlayerServerId(targetPlayer), billName or "Fine: Ambulance", amount)
+		TriggerServerEvent('esx_billing:sendBill', GetPlayerServerId(targetPlayer), 'society_ambulance', amount, billName or 'Fine: Ambulance')
 	end
 end
 
@@ -445,7 +445,7 @@ end
 -- Draw markers & Marker logic
 Citizen.CreateThread(function()
 	while true do
-		Citizen.Wait(0)
+		local sleep = 1200
 		local playerCoords = GetEntityCoords(PlayerPedId())
 		local letSleep, isInMarker, hasExited = true, false, false
 		local currentHospital, currentPart, currentPartNum
@@ -456,6 +456,7 @@ Citizen.CreateThread(function()
 				local distance = GetDistanceBetweenCoords(playerCoords, v, true)
 
 				if distance < 7 then
+					sleep = 0
 					DrawMarker(Config.Marker.type, v, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, Config.Marker.x, Config.Marker.y,
 						Config.Marker.z, Config.Marker.r, Config.Marker.g, Config.Marker.b, Config.Marker.a, false, true,
 						2, true, false, false, false)
@@ -472,6 +473,7 @@ Citizen.CreateThread(function()
 				local distance = GetDistanceBetweenCoords(playerCoords, v, true)
 
 				if distance < 7 then
+					sleep = 0
 					DrawMarker(Config.Marker.type, v, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, Config.Marker.x, Config.Marker.y,
 						Config.Marker.z, Config.Marker.r, Config.Marker.g, Config.Marker.b, Config.Marker.a, false, false,
 						2, true, false, false, false)
@@ -488,6 +490,7 @@ Citizen.CreateThread(function()
 				local distance = GetDistanceBetweenCoords(playerCoords, v.Spawner, true)
 
 				if distance < 10 then
+					sleep = 0
 					DrawMarker(v.Marker.type, v.Spawner, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, v.Marker.x, v.Marker.y, v.Marker
 						.z, v.Marker.r, v.Marker.g, v.Marker.b, v.Marker.a, false, false, 2, v.Marker.rotate, nil, nil,
 						false)
@@ -504,6 +507,7 @@ Citizen.CreateThread(function()
 				local distance = GetDistanceBetweenCoords(playerCoords, v.Spawner, true)
 
 				if distance < 20 then
+					sleep = 0
 					DrawMarker(v.Marker.type, v.Spawner, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, v.Marker.x, v.Marker.y, v.Marker
 						.z, v.Marker.r, v.Marker.g, v.Marker.b, v.Marker.a, false, false, 2, v.Marker.rotate, nil, nil,
 						false)
@@ -520,6 +524,7 @@ Citizen.CreateThread(function()
 				local distance = GetDistanceBetweenCoords(playerCoords, v.From, true)
 
 				if distance < 20 then
+					sleep = 0
 					DrawMarker(v.Marker.type, v.From, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, v.Marker.x, v.Marker.y, v.Marker.z,
 						v.Marker.r, v.Marker.g, v.Marker.b, v.Marker.a, false, false, 2, v.Marker.rotate, nil, nil, false)
 					letSleep = false
@@ -554,8 +559,10 @@ Citizen.CreateThread(function()
 		end
 
 		if letSleep then
-			Citizen.Wait(500)
+			sleep = 500
 		end
+
+		Citizen.Wait(sleep)
 	end
 end)
 
@@ -599,7 +606,7 @@ end)
 -- Key Controls
 Citizen.CreateThread(function()
 	while true do
-		Citizen.Wait(0)
+		local sleep = 250
 
 		if IsControlJustReleased(0, Keys['BACKSPACE']) then
 			if AmbulanceMenuState.open then
@@ -623,6 +630,7 @@ Citizen.CreateThread(function()
 		end
 
 		if CurrentAction then
+			sleep = 0
 			pcall(function()
 				exports['AFU.Toastify']:show({
 					{ type = 'text', prop = 'PRESS' },
@@ -647,9 +655,22 @@ Citizen.CreateThread(function()
 				CurrentAction = nil
 			end
 		elseif ESX.PlayerData and ESX.PlayerData.job and ESX.PlayerData.job.name == 'ambulance' and not IsDead then
+			sleep = 0
 			if IsControlJustReleased(0, Keys['F6']) then
 				OpenMobileAmbulanceActionsMenu()
 			end
+		end
+
+		Citizen.Wait(sleep)
+	end
+end)
+
+Citizen.CreateThread(function()
+	while true do
+		if isInShopMenu then
+			Citizen.Wait(0)
+			DisableControlAction(0, 75, true)
+			DisableControlAction(27, 75, true)
 		else
 			Citizen.Wait(500)
 		end
@@ -925,18 +946,6 @@ function OpenShopMenu(elements, restoreCoords, shopCoords)
 		TaskWarpPedIntoVehicle(playerPed, vehicle, -1)
 		FreezeEntityPosition(vehicle, true)
 	end)
-	Citizen.CreateThread(function()
-		while true do
-			Citizen.Wait(0)
-
-			if isInShopMenu then
-				DisableControlAction(0, 75, true)
-				DisableControlAction(27, 75, true)
-			else
-				Citizen.Wait(500)
-			end
-		end
-	end)
 end
 
 function OpenShopheli(elements, restoreCoords, shopCoords)
@@ -1031,18 +1040,6 @@ function OpenShopheli(elements, restoreCoords, shopCoords)
 		table.insert(spawnedVehicles, vehicle)
 		TaskWarpPedIntoVehicle(playerPed, vehicle, -1)
 		FreezeEntityPosition(vehicle, true)
-	end)
-	Citizen.CreateThread(function()
-		while true do
-			Citizen.Wait(0)
-
-			if isInShopMenu then
-				DisableControlAction(0, 75, true)
-				DisableControlAction(27, 75, true)
-			else
-				Citizen.Wait(500)
-			end
-		end
 	end)
 end
 
@@ -1179,8 +1176,7 @@ function OpenCreateBilling(player)
 				if player < 0 then
 					return
 				end
-				exports["iSpecial_Billing"]:SentBill(GetPlayerServerId(player), "Fine: Ambulance",
-					tonumber(data.current.value))
+				TriggerServerEvent('esx_billing:sendBill', GetPlayerServerId(player), 'society_ambulance', tonumber(data.current.value), 'Fine: Ambulance')
 				TriggerEvent("pNotify:SendNotification", {
 					text = 'Send Fine To Player Id ' .. GetPlayerServerId(player),
 					type = "success",

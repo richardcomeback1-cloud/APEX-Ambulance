@@ -1315,7 +1315,7 @@ function startDistressSignal()
                     end
 
                     local sentToMedic = pcall(function()
-                        exports['nakin_medicreport']:SendAlert(alertPayload)
+                        exports['APEX-MedicReport']:SendAlert(alertPayload)
                     end)
 
                     if not sentToMedic then

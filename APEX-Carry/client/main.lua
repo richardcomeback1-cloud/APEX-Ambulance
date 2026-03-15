@@ -33,6 +33,38 @@ local Next_show = 0
 local Status_Toxic = 0
 
 PlayerListId = {}
+
+local function getNearestPlayerInArea(range, predicate)
+	local myPed = PlayerPedId()
+	local myCoords = GetEntityCoords(myPed)
+	local players = ESX.Game.GetPlayersInArea(myCoords, range or 2.0)
+	local nearestPlayer = nil
+	local nearestDist = nil
+
+	for _, playerId in ipairs(players) do
+		if playerId ~= PlayerId() then
+			local targetPed = GetPlayerPed(playerId)
+			if targetPed and DoesEntityExist(targetPed) then
+				local ok = true
+				if predicate then
+					ok = predicate(targetPed, playerId)
+				end
+
+				if ok then
+					local targetCoords = GetEntityCoords(targetPed)
+					local dist = #(myCoords - targetCoords)
+					if not nearestDist or dist < nearestDist then
+						nearestDist = dist
+						nearestPlayer = playerId
+					end
+				end
+			end
+		end
+	end
+
+	return nearestPlayer, nearestDist
+end
+
 function OpenActionMenuInteraction(target)
 	if StatePlayer.IsCarryEmote then
 		ESX.UI.Menu.Open(
@@ -114,40 +146,26 @@ function OpenActionMenuInteraction(target)
 					return
 				end
 
-				local player, distance = ESX.Game.GetClosestPlayer()
-				local playerarea = ESX.Game.GetPlayersInArea(GetEntityCoords(PlayerPedId()), 2.0)
+				local targetPlayer = getNearestPlayerInArea(2.0, function(targetPed)
+					return IsPedDeadOrDying(targetPed, true)
+				end)
 
-				table.sort(playerarea,
-					function(a, b)
-						return GetDistanceBetweenCoords(GetEntityCoords(PlayerPedId()),
-								GetEntityCoords(GetPlayerPed(a)), true) <
-							GetDistanceBetweenCoords(GetEntityCoords(PlayerPedId()),
-								GetEntityCoords(GetPlayerPed(b)), true)
-					end)
+				if targetPlayer then
+					StatePlayer.IsCarry = true
+					LoadAnimationDictionary("missfinale_c2mcs_1")
+					TaskPlayAnim(PlayerPedId(), "missfinale_c2mcs_1", "fin_c2_mcs_1_camman", 8.0, 8.0, -1, 49, 0,
+						false, false, false)
+					StatePlayer.LastAnim = "fin_c2_mcs_1_camman"
+					StatePlayer.LastDictAnim = "missfinale_c2mcs_1"
 
-				if #playerarea > 0 then
-					for key, value in pairs(playerarea) do
-						if IsPedDeadOrDying(GetPlayerPed(GetPlayerFromServerId(GetPlayerServerId(tonumber(value)))), true) then
-							StatePlayer.IsCarry = true
-							LoadAnimationDictionary("missfinale_c2mcs_1")
-							TaskPlayAnim(PlayerPedId(), "missfinale_c2mcs_1", "fin_c2_mcs_1_camman", 8.0, 8.0, -1, 49, 0,
-								false, false, false)
-							StatePlayer.LastAnim = "fin_c2_mcs_1_camman"
-							StatePlayer.LastDictAnim = "missfinale_c2mcs_1"
-
-							StatePlayer.CarryTarget = tonumber(GetPlayerServerId(value))
-							TriggerServerEvent("NSPx_HoldUp:CarryCorpse", StatePlayer.CarryTarget)
-							while not HasAnimDictLoaded("dead@fall") do
-								RequestAnimDict("dead@fall")
-								Citizen.Wait(100)
-							end
-
-
-							-- TaskPlayAnim(GetPlayerPed(GetPlayerFromServerId(StatePlayer.CarryTarget)), 'missarmenian2' , 'corpse_search_exit_ped', 8.0, 8.0, -1, 1, 1.0, true, true, true )
-							ClearPedTasksImmediately(GetPlayerPed(GetPlayerFromServerId(StatePlayer.CarryTarget)))
-							break
-						end
+					StatePlayer.CarryTarget = tonumber(GetPlayerServerId(targetPlayer))
+					TriggerServerEvent("NSPx_HoldUp:CarryCorpse", StatePlayer.CarryTarget)
+					while not HasAnimDictLoaded("dead@fall") do
+						RequestAnimDict("dead@fall")
+						Citizen.Wait(100)
 					end
+
+					ClearPedTasksImmediately(GetPlayerPed(targetPlayer))
 				end
 			elseif data2.current.value == 'drag_alive_job' then
 				if StatePlayer.IsCarry then
@@ -158,32 +176,20 @@ function OpenActionMenuInteraction(target)
 					return
 				end
 
-				local player, distance = ESX.Game.GetClosestPlayer()
-				local playerarea = ESX.Game.GetPlayersInArea(GetEntityCoords(PlayerPedId()), 2.0)
+				local targetPlayer = getNearestPlayerInArea(2.0, function(targetPed)
+					return not IsPedDeadOrDying(targetPed)
+				end)
 
-				table.sort(playerarea,
-					function(a, b)
-						return GetDistanceBetweenCoords(GetEntityCoords(PlayerPedId()),
-								GetEntityCoords(GetPlayerPed(a)), true) <
-							GetDistanceBetweenCoords(GetEntityCoords(PlayerPedId()),
-								GetEntityCoords(GetPlayerPed(b)), true)
-					end)
+				if targetPlayer then
+					StatePlayer.IsCarry = true
+					LoadAnimationDictionary("missfinale_c2mcs_1")
+					TaskPlayAnim(PlayerPedId(), "missfinale_c2mcs_1", "fin_c2_mcs_1_camman", 8.0, 8.0, -1, 49, 0,
+						false, false, false)
+					StatePlayer.LastAnim = "fin_c2_mcs_1_camman"
+					StatePlayer.LastDictAnim = "missfinale_c2mcs_1"
 
-				if #playerarea > 0 then
-					for key, value in pairs(playerarea) do
-						if IsPedDeadOrDying(GetPlayerPed(GetPlayerFromServerId(GetPlayerServerId(tonumber(value))))) ~= 1 then
-							StatePlayer.IsCarry = true
-							LoadAnimationDictionary("missfinale_c2mcs_1")
-							TaskPlayAnim(PlayerPedId(), "missfinale_c2mcs_1", "fin_c2_mcs_1_camman", 8.0, 8.0, -1, 49, 0,
-								false, false, false)
-							StatePlayer.LastAnim = "fin_c2_mcs_1_camman"
-							StatePlayer.LastDictAnim = "missfinale_c2mcs_1"
-
-							StatePlayer.CarryTarget = tonumber(GetPlayerServerId(value))
-							TriggerServerEvent("NSPx_HoldUp:CarrySync", StatePlayer.CarryTarget)
-							break
-						end
-					end
+					StatePlayer.CarryTarget = tonumber(GetPlayerServerId(targetPlayer))
+					TriggerServerEvent("NSPx_HoldUp:CarrySync", StatePlayer.CarryTarget)
 				end
 			elseif data2.current.value == 'drag_job' then
 				local player, distance = ESX.Game.GetClosestPlayer()
@@ -279,30 +285,18 @@ function CarryEmote()
 		function(data2, menu2)
 			if data2.current.value then
 				ESX.UI.Menu.CloseAll()
-				local player, distance = ESX.Game.GetClosestPlayer()
-				local playerarea = ESX.Game.GetPlayersInArea(GetEntityCoords(PlayerPedId()), 2.0)
-
-				table.sort(playerarea,
-					function(a, b)
-						return GetDistanceBetweenCoords(GetEntityCoords(PlayerPedId()),
-								GetEntityCoords(GetPlayerPed(a)), true) <
-							GetDistanceBetweenCoords(GetEntityCoords(PlayerPedId()),
-								GetEntityCoords(GetPlayerPed(b)), true)
+					local targetPlayer = getNearestPlayerInArea(2.0, function(targetPed)
+						return not IsPedDeadOrDying(targetPed)
 					end)
 
-				if #playerarea > 0 then
-					for key, value in pairs(playerarea) do
-						if IsPedDeadOrDying(GetPlayerPed(GetPlayerFromServerId(GetPlayerServerId(tonumber(value))))) ~= 1 then
-							StatePlayer.CarryEmoteKey = data2.current.value
-							TriggerServerEvent("NSPx_HoldUp:RequestCarry", tonumber(GetPlayerServerId(value)),
-								data2.current.value)
-							break
-						end
+					if targetPlayer then
+						StatePlayer.CarryEmoteKey = data2.current.value
+						TriggerServerEvent("NSPx_HoldUp:RequestCarry", tonumber(GetPlayerServerId(targetPlayer)),
+							data2.current.value)
 					end
 				end
-			end
-		end, function(data2, menu2)
-			menu2.close()
+			end, function(data2, menu2)
+				menu2.close()
 		end
 	)
 end
@@ -382,15 +376,13 @@ AddEventHandler("NSPx_HoldUp:AcceptCarry", function(TargetCarry, key)
 		anim.PlaybackRate, anim.X, anim.Y, anim.Z)
 end)
 
-Citizen.CreateThread(function()
-	while true do
-		Citizen.Wait(0)
-		if IsControlJustReleased(0, 56) and not ESX.UI.Menu.IsOpen('default', GetCurrentResourceName(), 'action_menu')
-			and IsPedOnFoot(PlayerPedId()) then
-			OpenActionMenuInteraction()
-		end
+RegisterCommand('apex_carry_menu', function()
+	if not ESX.UI.Menu.IsOpen('default', GetCurrentResourceName(), 'action_menu') and IsPedOnFoot(PlayerPedId()) then
+		OpenActionMenuInteraction()
 	end
-end)
+end, false)
+
+RegisterKeyMapping('apex_carry_menu', 'APEX Carry Menu', 'keyboard', 'F9')
 
 RegisterNetEvent("NSPx_HoldUp:ClearCarry")
 AddEventHandler("NSPx_HoldUp:ClearCarry", function(TargetCarry)

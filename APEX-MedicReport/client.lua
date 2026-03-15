@@ -15,18 +15,29 @@ local AllowNeedHelp		= true
 local ScriptProp		= {}
 local AlertData			= {}
 local ScriptEntity		= {}
+local AlertCaseIndexMap	= {}
 
 Citizen.CreateThread(function()
 	while ESX == nil do
 		TriggerEvent(Config["Router"], function(obj) ESX = obj end)
-		Citizen.Wait(0)
+		Citizen.Wait(200)
 	end
 
 	while ESX.GetPlayerData().job == nil do
-		Citizen.Wait(10)
+		Citizen.Wait(100)
 	end
     ESX.PlayerData = ESX.GetPlayerData()
+	if ESX.PlayerData and ESX.PlayerData.job and ESX.PlayerData.job.name then
+		TriggerServerEvent('nakin_medicreport:cacheJob', ESX.PlayerData.job.name)
+	end
     ScriptWork()
+end)
+
+RegisterNetEvent('esx:setJob')
+AddEventHandler('esx:setJob', function(job)
+	if job and job.name then
+		TriggerServerEvent('nakin_medicreport:cacheJob', job.name)
+	end
 end)
 
 function ScriptWork()
@@ -79,12 +90,12 @@ function ScriptWork()
 
 		local caseId = tonumber(args and args[1])
 		if not caseId then
-			exports['nakin_allnotify']:AddNotify({type = "error", text = "ใช้คำสั่ง: medicsuccess [idcase]"})
+			exports['APEX-AllNotify']:AddNotify({type = "error", text = "ใช้คำสั่ง: medicsuccess [idcase]"})
 			return
 		end
 
 		TriggerServerEvent(scriptName..':UpdateCase', caseId, "done")
-		exports['nakin_allnotify']:AddNotify({type = "success", text = "อัปเดตเคสเป็นปลอดภัยแล้ว"})
+		exports['APEX-AllNotify']:AddNotify({type = "success", text = "อัปเดตเคสเป็นปลอดภัยแล้ว"})
 	end, false)
 
 	RegisterNetEvent(scriptName..':RefreshBlackList')
@@ -107,7 +118,7 @@ function ScriptWork()
 				TriggerServerEvent(scriptName..':AddAlert', data)
 			-- end
 		else
-			exports['nakin_allnotify']:AddNotify({type = "error", text = "ไม่สามารถขอความช่วยเหลือได้"})
+			exports['APEX-AllNotify']:AddNotify({type = "error", text = "ไม่สามารถขอความช่วยเหลือได้"})
 		end
 	end
 
@@ -144,9 +155,11 @@ function ScriptWork()
 
 	function SetNewTable()
 		local newtable = {}
-		for i = 1, 3000 do
-			if AlertData[i] then
-				table.insert(newtable, AlertData[i])
+		AlertCaseIndexMap = {}
+		for _, caseData in pairs(AlertData) do
+			newtable[#newtable + 1] = caseData
+			if caseData.caseid then
+				AlertCaseIndexMap[tonumber(caseData.caseid)] = #newtable
 			end
 		end
 		AlertData = newtable
@@ -178,6 +191,9 @@ function ScriptWork()
 			newdata.remain = tonumber(newdata.remain) or Config["DefaultCaseRemainSeconds"] or 2700
 			newdata.remaintext = string.format("%02d:%02d", math.floor(newdata.remain / 60), newdata.remain % 60)
 			table.insert(AlertData, newdata)
+			if newdata.caseid then
+				AlertCaseIndexMap[tonumber(newdata.caseid)] = #AlertData
+			end
 			RefreshTabletUI()
 		end
 	end)
@@ -187,23 +203,99 @@ function ScriptWork()
 		if ESX.GetPlayerData().job.name == "ambulance" then
 			if status == -1 then
 				AlertData = {}
+				AlertCaseIndexMap = {}
 			else
-				for k,v in pairs(AlertData) do
-					if v.caseid == caseid then
-						if status == 0 then
-							AlertData[k] = nil
-						else
-							AlertData[k].text = text
-							AlertData[k].status = status
-							if status == 2 and ac ~= nil then
-								AlertData[k].ac = ac
+				local lookupCaseId = tonumber(caseid)
+				local index = AlertCaseIndexMap[lookupCaseId]
+				local targetCase = index and AlertData[index]
+
+				if targetCase then
+					if status == 0 then
+						AlertData[index] = nil
+						AlertCaseIndexMap[lookupCaseId] = nil
+					else
+						targetCase.text = text
+						targetCase.status = status
+						if status == 2 and ac ~= nil then
+							targetCase.ac = ac
+						end
+					end
+				else
+					for k, v in pairs(AlertData) do
+						if tonumber(v.caseid) == lookupCaseId then
+							AlertCaseIndexMap[lookupCaseId] = k
+							if status == 0 then
+								AlertData[k] = nil
+								AlertCaseIndexMap[lookupCaseId] = nil
+							else
+								AlertData[k].text = text
+								AlertData[k].status = status
+								if status == 2 and ac ~= nil then
+									AlertData[k].ac = ac
+								end
 							end
+							break
 						end
 					end
 				end
 			end
 			RefreshTabletUI()
 		end
+	end)
+
+	RegisterNetEvent(scriptName..':UpdateCaseBulk')
+	AddEventHandler(scriptName..':UpdateCaseBulk', function(caseUpdates)
+		if ESX.GetPlayerData().job.name ~= "ambulance" then
+			return
+		end
+
+		if type(caseUpdates) ~= 'table' or #caseUpdates == 0 then
+			return
+		end
+
+		for _, caseUpdate in ipairs(caseUpdates) do
+			local lookupCaseId = tonumber(caseUpdate.caseid)
+			local status = tonumber(caseUpdate.status)
+			local text = caseUpdate.text
+			local ac = caseUpdate.ac
+
+			if lookupCaseId then
+				local index = AlertCaseIndexMap[lookupCaseId]
+				local targetCase = index and AlertData[index]
+
+				if targetCase then
+					if status == 0 then
+						AlertData[index] = nil
+						AlertCaseIndexMap[lookupCaseId] = nil
+					else
+						targetCase.status = status or targetCase.status
+						targetCase.text = text or targetCase.text
+						if status == 2 and ac ~= nil then
+							targetCase.ac = ac
+						end
+					end
+				else
+					for k, v in pairs(AlertData) do
+						if tonumber(v.caseid) == lookupCaseId then
+							AlertCaseIndexMap[lookupCaseId] = k
+							if status == 0 then
+								AlertData[k] = nil
+								AlertCaseIndexMap[lookupCaseId] = nil
+							else
+								AlertData[k].status = status or AlertData[k].status
+								AlertData[k].text = text or AlertData[k].text
+								if status == 2 and ac ~= nil then
+									AlertData[k].ac = ac
+								end
+							end
+							break
+						end
+					end
+				end
+			end
+		end
+
+		RefreshTabletUI()
 	end)
 
 	function RefreshTabletUI()
@@ -243,7 +335,11 @@ function ScriptWork()
 
 	Citizen.CreateThread(function()
 		while true do
-			Citizen.Wait(1000)
+			if next(AlertData) == nil then
+				Citizen.Wait(2000)
+			else
+				Citizen.Wait(1000)
+			end
 			for k, v in pairs(AlertData) do
 				v.time = v.time + 1
 				v.casetime = ConvertSecondsToMinutes(v.time - v.servertime)
@@ -362,7 +458,7 @@ function ScriptWork()
 		local _, caseData = findCaseByCaseId(data and data.caseid)
 		if caseData then
 			SetNewWaypoint(caseData.coords.x, caseData.coords.y)
-			exports['nakin_allnotify']:AddNotify({type = "success", text = "ปักหมุดเป้าหมายแล้ว"})
+			exports['APEX-AllNotify']:AddNotify({type = "success", text = "ปักหมุดเป้าหมายแล้ว"})
 			if cb then cb('ok') end
 			return
 		end
@@ -390,7 +486,7 @@ function ScriptWork()
 			TriggerServerEvent(scriptName..':UpdateCase', caseData.caseid, "deletecase")
 			if cb then cb('ok') end
 		elseif caseData then
-			exports['nakin_allnotify']:AddNotify({type = "error", text = "ลบได้เฉพาะเคสที่ปลอดภัยแล้ว"})
+			exports['APEX-AllNotify']:AddNotify({type = "error", text = "ลบได้เฉพาะเคสที่ปลอดภัยแล้ว"})
 			if cb then cb('invalid_status') end
 		else
 			if cb then cb('not_found') end
@@ -416,7 +512,7 @@ function ScriptWork()
 			if data.number then
 				TriggerServerEvent(scriptName..':AddBlackListNumber', tonumber(data.number), data.status)
 				if data.status then
-					exports['nakin_allnotify']:AddNotify({type = "success", text = "เพิ่ม "..data.number.." ในรายการ BlackList แล้ว"})
+					exports['APEX-AllNotify']:AddNotify({type = "success", text = "เพิ่ม "..data.number.." ในรายการ BlackList แล้ว"})
 				end
 			end
 			Citizen.Wait(1000)
@@ -425,4 +521,3 @@ function ScriptWork()
 	end)
 
 end
-
