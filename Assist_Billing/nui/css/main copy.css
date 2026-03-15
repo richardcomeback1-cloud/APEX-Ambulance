@@ -1,0 +1,353 @@
+@import url('https://fonts.googleapis.com/css2?family=Kanit:wght@100;200;300;400;500&display=swap');
+
+* {
+    font-family: 'Kanit', sans-serif;
+    font-weight: 300;
+    user-select: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+}
+
+body {
+    overflow: hidden;
+    background: gray;
+    /* background: transparent !important; */
+}
+
+.ui {
+    position: absolute;
+    top: 50%;
+    right: 0%;
+    transform: translate(-50%, -50%);
+    width: 40vw;
+    height: 32vw;
+}
+
+.base {
+    position: absolute;
+    background-image: linear-gradient(62deg, #000000c5 0%, #000000e8 100%);
+    /* box-shadow: 0px 0px 50px #7bd5ffcb; */
+    border-radius: 10px 10px 10px 10px;
+    width: 50%;
+    height: 100%;
+}
+
+.header {
+    position: relative;
+
+    width: 100%;
+    height: 10%;
+
+    background: linear-gradient(87deg, #00b7ff 0%, #005f8b 80%);
+    /* background: linear-gradient(220deg, rgb(75, 0, 0) 0.4%, rgb(255, 0, 0) 100%); */
+    border-top-left-radius: 0.5em;
+    border-top-right-radius: 0.5em;
+}
+
+.header .process {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 100%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    justify-content: left;
+    margin-left: 5%;
+    align-items: left;
+    font-size: 1.15vw;
+    font-weight: bold;
+    color: white;
+}
+
+.MenuBilling {
+    position: relative;
+    display: grid;
+    grid-auto-columns: 1;
+    width: 100%;
+    height: 100%;
+    justify-items: center;
+}
+
+.Billall {
+    margin-top: 3%;
+    position: relative;
+    background: linear-gradient(to bottom, rgba(0, 0, 0, 0.534) 0%, rgba(0, 0, 0, 0.473) 100%), radial-gradient(at top center, rgba(0, 64, 123, 0.4) 0%, rgba(0, 42, 86, 0.485) 120%) #6d6d6d;
+    background-blend-mode: multiply,multiply;
+    width: 91.5%;
+    height: 25%;
+    border-radius: 10px 10px 10px 10px;
+}
+
+.CashBank {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    margin-top: -115%;
+    margin-left: 2%;
+    padding: 1%;
+    position: relative;
+    width: 96%;
+    height: 13%;
+    border-radius: 10px 10px 10px 10px;
+    justify-items: center;
+}
+
+.CashInventory {
+    width: 95%;
+    height: 100%;
+    border-radius: 10px 10px 10px 10px;
+    background: linear-gradient(to bottom, rgba(0, 0, 0, 0.534) 0%, rgba(0, 0, 0, 0.473) 100%), radial-gradient(at top center, rgba(0, 64, 123, 0.4) 0%, rgba(0, 34, 70, 0.4) 120%) #777777;
+    background-blend-mode: multiply,multiply;
+}
+
+.CashInventory span {
+    display: grid;
+    margin: 5% 0% 0% 4%;
+    font-size: 0.75vw;
+    color: white;
+    justify-items: end;
+    justify-content: start;
+}
+
+.Cash {
+    position: absolute;
+    bottom: 18%;
+    left: 4%;
+    font-size: 1.3vw;
+    font-weight: 400;
+    color: white;
+}
+
+.Bank {
+    position: absolute;
+    bottom: 18%;
+    left: 53%;
+    font-size: 1.3vw;
+    font-weight: 400;
+    color: white;
+}
+
+.Billall span {
+    position: absolute;
+    bottom: 30%;
+    right: 5%;
+    font-size: 0.6vw;
+    color: white;
+}
+
+.PriceBill {
+    position: absolute;
+    bottom: 5%;
+    right: 5%;
+    font-size: 2.5vh;
+    font-weight: 400;
+    color: white;
+}
+
+.PriceLimit {
+    display: none;
+    color: #00aeff;
+    text-shadow: 1px 1px 10px #006b8b;
+    position: absolute;
+    bottom: 41%;
+    right: 5%;
+    font-size: 1.5vh;
+}
+
+.BillName {
+    position: absolute;
+    top: 15px;
+    text-align: left;
+    margin: 0% 0 0 3.5%;
+    font-size: 1.2vw;
+    font-weight: 200;
+    color: white;
+}
+
+.Borad {
+    position: relative;
+    right: -5%;
+    width: 90%;
+    height: 41%;
+    top: 0%;
+    overflow-x: hidden;
+    overflow-y: scroll;
+}
+
+.Listbill {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    background: linear-gradient(to bottom, rgba(0, 0, 0, 0.308) 0%, rgba(0, 0, 0, 0.342) 100%), radial-gradient(at top center, rgba(255,255,255,0.40) 0%, rgba(0,0,0,0.40) 120%) #989898;
+    background-blend-mode: multiply,multiply;
+    border-radius: 10px 10px 10px 10px;
+    margin: 0% 0% 1% 0%;
+    height: auto;
+}
+
+.Listbillback {
+    padding: 1%;
+    position: relative;
+    width: 100%;
+    height: 100%;
+    border-radius: 10px 10px 10px 10px;
+    justify-items: center;
+}
+
+.left-number  {
+    display: grid;
+
+    width: 100%;
+    height: 100%;
+    font-size: 1.3vw;
+    color: white;
+    align-items: center;
+}
+
+.right {
+    display: grid;
+    font-size: 1.3vw;
+    color: white;
+    align-items: center;
+}
+
+.labal {
+    font-family: 'Kanit', sans-serif;
+    color: white;
+    text-align: left;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    -o-text-overflow: ellipsis;
+    -ms-text-overflow: ellipsis;
+    overflow: hidden;
+    width: 100%;
+    margin: 0 0 0 20%;
+}
+
+.alignlabal {
+    background-color: black;
+    margin-left: 0%;
+}
+
+.Pricebillin {
+    font-family: 'Kanit', sans-serif;
+    font-size: 1.5vh;
+    display: grid;
+    grid-template-columns:  1fr 1fr;
+    margin: 2% 0 0 45%;
+    color: white;
+    text-align: right;
+    justify-items: start;
+    align-items: center;
+}
+
+.btn {
+    display: flex;
+    padding: 0.1rem;
+    text-align: right;
+    margin: 0% 0 0 10%;
+    border-radius: 50%;
+    color: white;
+}
+
+.btn:hover {
+    color:rgb(0, 247, 255);
+    box-shadow: 1px rgb(0, 174, 255);
+    transition: all 0.1s linear;
+}
+
+.Number {
+    display: grid;
+    text-align: left;
+    grid-template-columns: auto 1fr;
+    margin: 2% 0 0 7%;
+    padding: 3%;   
+    font-family: 'Kanit', sans-serif;
+    font-size: 1.5vh;
+    color: white;
+}
+
+.btn:hover {
+    color: rgb(77, 77, 77);
+}
+
+.btn ion-icon {
+    font-size: 1.5rem;
+}
+
+.Borad::-webkit-scrollbar {
+display: none;
+}
+
+.Borad {
+-ms-overflow-style: none;
+scrollbar-width: none;
+}
+
+.Tabel {
+    display: grid;
+    grid-template-columns: auto 1fr 1fr 1fr;
+    /* background-color: white; */
+    width: 100%;
+    height: 5%;
+
+    max-width: 100%;
+    max-height: 5%;
+    margin: 1.5%;
+}
+
+.lumdam {
+    display: grid;
+    margin: 35% 0% 0% 60%;
+    font-size: 0.75vw;
+    color: white;
+    justify-items: end;
+    justify-content: start;
+}
+
+.laygan {
+    display: grid;
+    margin: 10% 0% 0% 30%;
+    font-size: 0.75vw;
+    color: white;
+    justify-items: end;
+    justify-content: start;
+}
+
+.yosbill {
+    display: grid;
+    grid-column: 3/4;
+    width: 100%;
+    margin: 9.5% 0% 0% 90%;
+    font-size: 0.75vw;
+    color: white;
+    justify-items: end;
+    justify-content: start;
+}
+
+.paymant {
+    display: grid;
+    margin: 9.5% 0% 0% 40%;
+    font-size: 0.75vw;
+    color: white;
+    justify-items: end;
+    justify-content: start;
+}
+
+.alignbtn {
+    font-family: 'Kanit', sans-serif;
+    margin-right: 0%;
+    margin-top: 0%;
+    /* display: grid; */
+    /* position: absolute; */
+    color: white;
+}
+
+.alignbill {
+    font-family: 'Kanit', sans-serif;
+    margin-right: 0%;
+    margin-top: 0%;
+    /* display: grid; */
+    /* position: absolute; */
+    color: white;
+}

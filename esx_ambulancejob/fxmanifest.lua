@@ -1,0 +1,51 @@
+fx_version 'cerulean'
+game 'gta5'
+lua54 'yes'
+description 'ESX Ambulance Job'
+
+version '1.2.0'
+
+shared_scripts {
+    '@es_extended/imports.lua',
+    '@ox_lib/init.lua',
+    '@bt_defender/module/shared.lua',
+}
+
+server_scripts {
+	'@oxmysql/lib/MySQL.lua',
+	'@es_extended/locale.lua',
+	'locales/th.lua',
+	'config/config.lua',
+	'config/config-billing.lua',
+	'config/zones.lua',
+	'server/main.lua',
+}
+
+client_scripts {
+	'@es_extended/locale.lua',
+	'locales/th.lua',
+	'config/config.lua',
+	'config/config-billing.lua',
+	'config/zones.lua',
+	'client/cam.lua',
+	'client/main.lua',
+	'client/job.lua',
+}
+
+dependencies {
+	'es_extended',
+    'ox_lib',
+    'oxmysql',
+}
+
+ui_page "html/index.html"
+
+files {
+	'html/index.html',
+	'html/js/script.js',
+	'html/css/style.css',
+	'html/js/iconify-icon.min.js',
+    'html/js/materialize.min.js',
+	'html/img/*.png',
+	'html/*.ttf'
+}

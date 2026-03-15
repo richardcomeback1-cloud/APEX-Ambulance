@@ -1,0 +1,363 @@
+@import url('https://fonts.googleapis.com/css2?family=Kanit:wght@100;200;300;400;500&display=swap');
+
+* {
+    font-family: 'Kanit', sans-serif;
+    font-weight: 400;
+    user-select: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+}
+
+body {
+    overflow: hidden;
+    color: #dedede;
+    /* background: gray; */
+    background: transparent !important;
+}
+
+
+.assist_container{
+    position: absolute;
+    width: 30vh;
+    height: 40vh;
+    border-radius: .6vh;
+    transform: translate(-50%,-50%);
+    top: 50%;
+    left: 50%;
+    background: rgb(28, 28, 28,.945);
+}
+
+.container_title{
+    position: absolute;
+    display: flex;
+    align-items: center;
+    width: 100%;
+    height: 4.5vh;
+    top: -5vh;
+    background: rgb(28, 28, 28,.945);
+    border-radius: .6vh;
+}
+
+.container_title::after{
+    content: '';
+    position: absolute;
+    width: .3vh;
+    height: 2.6vh;
+    right: .8vh;
+    border-radius: 2vh;
+    box-shadow: 0 0 .2vh #32b4fd;
+    background: #32b4fd;
+}
+
+.assist_title_name{
+    margin-left: 1.3vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1vh;
+    color: rgb(222, 222, 222,50%);
+    font-size: 1.8vh;
+}
+
+.assist_title_name>iconify-icon{
+    background: #032235;
+    box-shadow: 0 0 0 .25vh #1A6691;
+    border: solid .2vw #32b4fd;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 1.6vh;
+    color: #dedede;
+    width: 2.5vh;
+    height: 2.5vh;
+}
+
+.assist_bg{
+    position: absolute;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 28vh;
+    height: 38vh;
+    border-radius: .6vh;
+    /* background: red; */
+    background: rgb(0, 0, 0,14%);
+    transform: translate(-50%,-50%);
+    left: 50%;
+    top: 50%;
+}
+
+.assist_header_billing{
+    position: absolute;
+    display: flex;
+    justify-content: center;
+    width: 25.5vh;
+    height: 10vh;
+    background: rgb(36, 36, 36,57%);
+    border-radius: .5vh;
+    top: 1.2vh;
+}
+
+.assist_title_header{
+    margin-top: 1vh;
+    font-size: 1.2vh;
+}
+
+.assist_title_header>span{
+    color: rgb(222, 222, 222,50%);
+}
+
+.assist_title_name_ply{
+    position: absolute;
+    top: 2.5vh;
+    font-size: 2vh;
+    color: #dedede;
+    white-space: nowrap;
+    width: 22vh;
+    text-align: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.assist_title_header_1{
+    position: absolute;
+    font-size: 1.2vh;
+    top: 5.5vh;
+    transform: translateX(-50%);
+    left: 50%;
+}
+
+.assist_title_header_1>span{
+    color: rgb(222, 222, 222,50%);
+}
+
+.assist_title_money{
+    position: absolute;
+    top: 6.8vh;
+    font-size: 1.5vh;
+    color: #dedede;
+    white-space: nowrap;
+    width: 22vh;
+    /* left: 1vh; */
+    transform: translateX(-50%);
+    left: 50%;
+    text-align: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.assist_list_box_money{
+    position: absolute;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: .5vh;
+    top: 12.5vh;
+    /* background: red; */
+    width: 25.5vh;
+    height: 5vh;
+}
+
+.assist_box_money{
+    position: relative;
+    width: 13vh;
+    height: 6vh;
+    background: rgb(36, 36, 36,57%);
+    border-radius: .5vh;
+}
+
+.assist_title_header_2{
+    position: absolute;
+    font-size: 1vh;
+    top: 1vh;
+    left: 1vh;
+}
+
+.assist_title_header_2>span{
+    color: rgb(222, 222, 222,50%);
+}
+
+.assist_title_money_1{
+    position: absolute;
+    top: 2vh;
+    font-size: 2vh;
+    color: #dedede;
+    white-space: nowrap;
+    width: 11vh;
+    left: 1vh;
+    text-align: left;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.Tabel {
+    display: grid;
+    grid-template-columns: auto 1fr 1fr 1fr;
+    /* background-color: white; */
+    width: 100%;
+    height: 5%;
+
+    max-width: 100%;
+    max-height: 5%;
+    margin: 1.5%;
+}
+
+.lumdam {
+    display: grid;
+    margin: 35% 0% 0% 60%;
+    font-size: 1vh;
+     color: rgb(222, 222, 222,50%);
+    justify-items: end;
+    justify-content: start;
+}
+
+.laygan {
+    display: grid;
+    margin: 10% 0% 0% 30%;
+    font-size: 1vh;
+    color: rgb(222, 222, 222,50%);
+    justify-items: end;
+    justify-content: start;
+}
+
+.yosbill {
+    display: grid;
+    grid-column: 3/4;
+    width: 100%;
+    margin: 9.5% 0% 0% 90%;
+    font-size:1vh;
+     color: rgb(222, 222, 222,50%);
+    justify-items: end;
+    justify-content: start;
+}
+
+.paymant {
+    display: grid;
+    margin: 9.5% 0% 0% 40%;
+    font-size: 1vh;
+     color: rgb(222, 222, 222,50%);
+    justify-items: end;
+    justify-content: start;
+}
+
+/*  */
+
+.Borad {
+    position: absolute;
+    width: 90%;
+    height: 41%;
+    top: 21vh;
+    overflow-x: hidden;
+    overflow-y: scroll;
+}
+
+.Listbill {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    background: rgb(36, 36, 36,57%);
+    border-radius: .5vh;
+    margin: 0% 0% 1% 0%;
+    height: auto;
+}
+
+.Listbillback {
+    padding: 1%;
+    position: relative;
+    width: 100%;
+    height: 100%;
+    border-radius: 10px 10px 10px 10px;
+    justify-items: center;
+}
+
+.left-number  {
+    display: grid;
+
+    width: 100%;
+    height: 100%;
+    font-size: 1.3vw;
+    color: white;
+    align-items: center;
+}
+
+.right {
+    display: grid;
+    font-size: 1.3vw;
+    color: white;
+    align-items: center;
+}
+
+.labal {
+    font-family: 'Kanit', sans-serif;
+    color: white;
+    text-align: left;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    -o-text-overflow: ellipsis;
+    -ms-text-overflow: ellipsis;
+    overflow: hidden;
+    width: 100%;
+    margin: 0 0 0 20%;
+}
+
+.alignlabal {
+    background-color: black;
+    margin-left: 0%;
+}
+
+.Pricebillin {
+    font-family: 'Kanit', sans-serif;
+    font-size: 1.5vh;
+    display: grid;
+    grid-template-columns:  1fr 1fr;
+    margin: 2% 0 0 45%;
+    color: white;
+    text-align: right;
+    justify-items: start;
+    align-items: center;
+}
+
+.btn {
+    display: flex;
+    padding: 0.1rem;
+    text-align: right;
+    margin: 0% 0 0 10%;
+    border-radius: 50%;
+    color: white;
+}
+
+.btn:hover {
+    color:rgb(0, 247, 255);
+    box-shadow: 1px rgb(0, 174, 255);
+    transition: all 0.1s linear;
+}
+
+.Number {
+    display: grid;
+    text-align: left;
+    grid-template-columns: auto 1fr;
+    margin: 2% 0 0 7%;
+    padding: 3%;   
+    font-family: 'Kanit', sans-serif;
+    font-size: 1.5vh;
+    color: white;
+}
+
+.btn:hover {
+    color: rgb(77, 77, 77);
+}
+
+.btn ion-icon {
+    font-size: 1.5rem;
+}
+
+.Borad::-webkit-scrollbar {
+display: none;
+}
+
+.Borad {
+-ms-overflow-style: none;
+scrollbar-width: none;
+}
