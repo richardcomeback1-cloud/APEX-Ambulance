@@ -667,13 +667,13 @@ end)
 
 Citizen.CreateThread(function()
 	while true do
+		local sleep = 500
 		if isInShopMenu then
-			Citizen.Wait(0)
+			sleep = 5
 			DisableControlAction(0, 75, true)
 			DisableControlAction(27, 75, true)
-		else
-			Citizen.Wait(500)
 		end
+		Citizen.Wait(sleep)
 	end
 end)
 
@@ -1058,7 +1058,7 @@ function WaitForVehicleToLoad(modelHash)
 		RequestModel(modelHash)
 
 		while not HasModelLoaded(modelHash) do
-			Citizen.Wait(0)
+			Citizen.Wait(5)
 
 			DisableControlAction(0, Keys['TOP'], true)
 			DisableControlAction(0, Keys['DOWN'], true)

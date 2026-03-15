@@ -255,39 +255,41 @@ function GetWayPointKey()
 end
 
 Citizen.CreateThread(function()
+	local nextTickAt = 0
 	while true do
-        HaveAlert = false
-		for k,v in pairs(Alert) do
-            if v.time > 0 then
-                HaveAlert = true
-                v.time = v.time - 1
-            else
-                SendNUIMessage({type = "remove", id = k })
-                Alert[k] = nil
-            end
-        end
-		Citizen.Wait(1000)
-	end
-end)
+		local sleep = 1000
+		local now = GetGameTimer()
 
-Citizen.CreateThread(function()
-	while true do
-        Sleep = 500
-        if HaveAlert then
-            Sleep = 0
-            for k,v in pairs(Alert) do
-                if v.time > 0 and v.wp_key then
-                    if IsControlPressed(0, Keys["LEFTSHIFT"]) and IsDisabledControlJustReleased(0, Keys[tostring(v.wp_key)]) then
-                        SetNewWaypoint(v.coords.x, v.coords.y)
-                        SendNUIMessage({type = "remove", id = k })
-                        -- TriggerServerEvent(scriptName..":CreateAlertZone", v.coords)
-                        Alert[k] = nil
-                        Citizen.Wait(1000)
-                    end
-                end
-            end
-        end
-		Citizen.Wait(Sleep)
+		if now >= nextTickAt then
+			HaveAlert = false
+			for k, v in pairs(Alert) do
+				if v.time > 0 then
+					HaveAlert = true
+					v.time = v.time - 1
+				else
+					SendNUIMessage({type = "remove", id = k })
+					Alert[k] = nil
+				end
+			end
+			nextTickAt = now + 1000
+		end
+
+		if HaveAlert then
+			sleep = 25
+			for k, v in pairs(Alert) do
+				if v.time > 0 and v.wp_key then
+					if IsControlPressed(0, Keys["LEFTSHIFT"]) and IsDisabledControlJustReleased(0, Keys[tostring(v.wp_key)]) then
+						SetNewWaypoint(v.coords.x, v.coords.y)
+						SendNUIMessage({type = "remove", id = k })
+						Alert[k] = nil
+						Citizen.Wait(1000)
+						break
+					end
+				end
+			end
+		end
+
+		Citizen.Wait(sleep)
 	end
 end)
 
@@ -300,9 +302,12 @@ AddEventHandler('nakin_allnotify:CreateAlertZone', function(coords)
 		SetBlipHighDetail(AlertZone[index].blip, true)
 		SetBlipColour(AlertZone[index].blip, 1)
 		SetBlipAlpha (AlertZone[index].blip, 128)
-		Citizen.Wait(AlertZone[index].time*1000)
-		RemoveBlip(AlertZone[index].blip)
-		AlertZone[index] = nil
+		SetTimeout(AlertZone[index].time * 1000, function()
+			if AlertZone[index] and AlertZone[index].blip then
+				RemoveBlip(AlertZone[index].blip)
+			end
+			AlertZone[index] = nil
+		end)
 	end
 end)
 
