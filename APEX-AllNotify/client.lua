@@ -20,16 +20,7 @@ local BaseRight 		= 	{
 
 Citizen.CreateThread(function()
 	while ESX == nil do
-		local ok, shared = pcall(function()
-			return exports['es_extended']:getSharedObject()
-		end)
-
-		if ok and shared then
-			ESX = shared
-		else
-			TriggerEvent("esx:getSharedObject", function(obj) ESX = obj end)
-		end
-
+		TriggerEvent("esx:getSharedObject", function(obj) ESX = obj end)
 		Citizen.Wait(200)
 	end
 
@@ -39,7 +30,7 @@ Citizen.CreateThread(function()
 
 	local playerJob = ESX.GetPlayerData().job
 	if playerJob and playerJob.name then
-		TriggerServerEvent('nakin_allnotify:cacheJob', playerJob.name)
+		TriggerServerEvent('APEX-AllNotify:cacheJob', playerJob.name)
 	end
 
 	UpdatePosNotify()
@@ -48,7 +39,7 @@ end)
 RegisterNetEvent('esx:setJob')
 AddEventHandler('esx:setJob', function(job)
 	if job and job.name then
-		TriggerServerEvent('nakin_allnotify:cacheJob', job.name)
+		TriggerServerEvent('APEX-AllNotify:cacheJob', job.name)
 	end
 end)
 
@@ -71,8 +62,8 @@ function AddNotify(data)
 	end
 end
 
-RegisterNetEvent('nakin_allnotify:AddNotify')
-AddEventHandler('nakin_allnotify:AddNotify', function(data)
+RegisterNetEvent('APEX-AllNotify:AddNotify')
+AddEventHandler('APEX-AllNotify:AddNotify', function(data)
     exports['APEX-AllNotify']:AddNotify({
 		type = data.type,
 		text = data.text,
@@ -100,8 +91,8 @@ RegisterCommand('notify', function(source, args, rawCommand)
 	end
 end)
 
-RegisterNetEvent('nakin_allnotify:setright')
-AddEventHandler('nakin_allnotify:setright', function(name,right)
+RegisterNetEvent('APEX-AllNotify:setright')
+AddEventHandler('APEX-AllNotify:setright', function(name,right)
 	if right then
 		BaseRight[name] = right
 	else
@@ -302,8 +293,8 @@ Citizen.CreateThread(function()
 	end
 end)
 
-RegisterNetEvent('nakin_allnotify:CreateAlertZone')
-AddEventHandler('nakin_allnotify:CreateAlertZone', function(coords)
+RegisterNetEvent('APEX-AllNotify:CreateAlertZone')
+AddEventHandler('APEX-AllNotify:CreateAlertZone', function(coords)
 	local index = ""..math.modf(coords.x)..""..math.modf(coords.y)..""
 	if not AlertZone[index] then
 		AlertZone[index] = {coords = coords, time = 20}
@@ -356,7 +347,7 @@ end)
 -- end)
 
 -- RegisterCommand('alert_police', function(source, args, rawCommand)
---     TriggerServerEvent("nakin_allnotify:SendAlert",{
+--     TriggerServerEvent("APEX-AllNotify:SendAlert",{
 --         job = "police",
 --         text = "ขโมยปูน",
 --         waypoint = true,
@@ -367,7 +358,7 @@ end)
 -- end)
 
 -- RegisterCommand('alert_ambulance', function(source, args, rawCommand)
---     TriggerServerEvent("nakin_allnotify:SendAlert",{
+--     TriggerServerEvent("APEX-AllNotify:SendAlert",{
 --         job = "ambulance",
 --         text = "ผู้ป่วย",
 --         waypoint = true,

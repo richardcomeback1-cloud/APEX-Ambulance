@@ -3,27 +3,6 @@ ESX = nil
 local playerJobCache = {}
 local playersByJob = {}
 
-local function fetchSharedObject()
-    if ESX then
-        return ESX
-    end
-
-    local ok, obj = pcall(function()
-        return exports['es_extended']:getSharedObject()
-    end)
-
-    if ok and obj then
-        ESX = obj
-        return ESX
-    end
-
-    TriggerEvent(Config.BASE, function(shared)
-        ESX = shared
-    end)
-
-    return ESX
-end
-
 local function updatePlayerJobCache(playerId, jobName)
     local pid = tonumber(playerId)
     if not pid then return end
@@ -84,7 +63,9 @@ end
 
 Citizen.CreateThread(function()
     while ESX == nil do
-        fetchSharedObject()
+        TriggerEvent(Config.BASE, function(obj)
+            ESX = obj
+        end)
         Citizen.Wait(200)
     end
 
@@ -98,7 +79,7 @@ local function sendNotify(target, data)
         return
     end
 
-    TriggerClientEvent('nakin_allnotify:AddNotify', target or -1, {
+    TriggerClientEvent('APEX-AllNotify:AddNotify', target or -1, {
         type = data.type,
         text = data.text,
         time = data.time,
@@ -121,18 +102,18 @@ local function sendAlert(data)
     end
 end
 
-RegisterNetEvent('nakin_allnotify:AddNotify')
-AddEventHandler('nakin_allnotify:AddNotify', function(data)
+RegisterNetEvent('APEX-AllNotify:AddNotify')
+AddEventHandler('APEX-AllNotify:AddNotify', function(data)
     sendNotify(source, data)
 end)
 
-RegisterNetEvent('nakin_allnotify:SendAlert')
-AddEventHandler('nakin_allnotify:SendAlert', function(data)
+RegisterNetEvent('APEX-AllNotify:SendAlert')
+AddEventHandler('APEX-AllNotify:SendAlert', function(data)
     sendAlert(data)
 end)
 
-RegisterNetEvent('nakin_allnotify:CreateAlertZone')
-AddEventHandler('nakin_allnotify:CreateAlertZone', function(payload)
+RegisterNetEvent('APEX-AllNotify:CreateAlertZone')
+AddEventHandler('APEX-AllNotify:CreateAlertZone', function(payload)
     local zoneData = payload
     local coords = payload
 
@@ -148,12 +129,12 @@ AddEventHandler('nakin_allnotify:CreateAlertZone', function(payload)
 
     local targets, broadcast = getTargetPlayers(zoneData)
     if broadcast then
-        TriggerClientEvent('nakin_allnotify:CreateAlertZone', -1, coords)
+        TriggerClientEvent('APEX-AllNotify:CreateAlertZone', -1, coords)
         return
     end
 
     for _, playerId in ipairs(targets) do
-        TriggerClientEvent('nakin_allnotify:CreateAlertZone', playerId, coords)
+        TriggerClientEvent('APEX-AllNotify:CreateAlertZone', playerId, coords)
     end
 end)
 
@@ -172,17 +153,12 @@ AddEventHandler('esx:setJob', function(sourceId, job, _lastJob)
     updatePlayerJobCache(playerId, jobName)
 end)
 
-RegisterNetEvent('nakin_allnotify:cacheJob')
-AddEventHandler('nakin_allnotify:cacheJob', function(jobName)
+RegisterNetEvent('APEX-AllNotify:cacheJob')
+AddEventHandler('APEX-AllNotify:cacheJob', function(jobName)
     updatePlayerJobCache(source, jobName)
 end)
 
 exports('AddNotify', function(target, data)
-    if type(target) == 'table' and data == nil then
-        sendNotify(-1, target)
-        return
-    end
-
     sendNotify(target, data)
 end)
 

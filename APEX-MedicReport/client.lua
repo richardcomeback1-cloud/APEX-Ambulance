@@ -182,7 +182,7 @@ function ScriptWork()
 				if newdata and newdata.name and newdata.phone then
 					previewText = ("คนสลบกดเรียกเคส: %s (%s)"):format(newdata.name, newdata.phone)
 				end
-				TriggerEvent("nakin_allnotify:AddAlert",{
+				TriggerEvent("APEX-AllNotify:AddAlert",{
 					job = "ambulance",
 					text = previewText,
 					waypoint = true,
