@@ -155,6 +155,13 @@ $(function () {
                     text = '<span style="color:#00b2ff;">ปลอดภัยแล้ว</span>'
                 }
 
+                let statusIconClass = 'is-waiting'
+                if (v.status == 2) {
+                    statusIconClass = 'is-going'
+                } else if (v.status == 3) {
+                    statusIconClass = 'is-safe'
+                }
+
                 let caseOwner = v.name || "ไม่ทราบชื่อ"
                 let caseRemain = v.remaintext || "00:00"
                 let pressCount = Number(v.pressedCount || 1)
@@ -166,7 +173,7 @@ $(function () {
                         <div class="caseid">${v.caseorder || v.caseid}</div>
                         <div class="casetime" data-caseid="${v.caseid}">${v.casetime || "-"}</div>
                         <div class="phonenumber"><div class="case-owner">${caseOwner}</div><div class="case-owner-detail" data-caseid="${v.caseid}">${caseOwnerDetail}</div></div>
-                        <div class="status">${text}</div>
+                        <div class="status"><span class="status-icon ${statusIconClass}"></span>${text}</div>
                         <div><img src="img/getbtn.png" class="getbtn casebtn" data-caseid="${v.caseid}"></div>
                         <div><img src="img/gpsbtn.png" class="gpsbtn casebtn" data-caseid="${v.caseid}"></div>
                         <div><img src="img/deletebtn.png" class="deletebtn casebtn" data-caseid="${v.caseid}" data-status="${v.status}" style="${v.status == 3 ? "" : "opacity:0.35;"}"></div>
