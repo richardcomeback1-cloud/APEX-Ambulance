@@ -1,5 +1,19 @@
+local function getPlayer(player)
+	if ESX.Player then
+		return ESX.Player(player)
+	end
+
+	if type(player) == 'number' and ESX.GetPlayerFromId then
+		return ESX.GetPlayerFromId(player)
+	end
+
+	if type(player) == 'string' and ESX.GetPlayerFromIdentifier then
+		return ESX.GetPlayerFromIdentifier(player)
+	end
+end
+
 local function billPlayerByIdentifier(targetIdentifier, senderIdentifier, sharedAccountName, label, amount)
-	local xTarget = ESX.Player(targetIdentifier)
+	local xTarget = getPlayer(targetIdentifier)
 	amount = ESX.Math.Round(amount)
 
 	if amount <= 0 then return end
@@ -31,7 +45,7 @@ local function billPlayerByIdentifier(targetIdentifier, senderIdentifier, shared
 end
 
 local function billPlayer(targetId, senderIdentifier, sharedAccountName, label, amount)
-	local xTarget = ESX.Player(targetId)
+	local xTarget = getPlayer(targetId)
 
 	if not xTarget then return end
 
@@ -39,7 +53,10 @@ local function billPlayer(targetId, senderIdentifier, sharedAccountName, label, 
 end
 
 RegisterNetEvent('esx_billing:sendBill', function(targetId, sharedAccountName, label, amount)
-	local xPlayer = ESX.Player(source)
+	local xPlayer = getPlayer(source)
+
+	if not xPlayer then return end
+
 	local jobName = string.gsub(sharedAccountName, 'society_', '')
 
 	if xPlayer.getJob().name ~= jobName then
@@ -52,7 +69,10 @@ end)
 exports("BillPlayer", billPlayer)
 
 RegisterNetEvent('esx_billing:sendBillToIdentifier', function(targetIdentifier, sharedAccountName, label, amount)
-	local xPlayer = ESX.Player(source)
+	local xPlayer = getPlayer(source)
+
+	if not xPlayer then return end
+
 	local jobName = string.gsub(sharedAccountName, 'society_', '')
 
 	if xPlayer.getJob().name ~= jobName then
@@ -65,14 +85,16 @@ end)
 exports("BillPlayerByIdentifier", billPlayerByIdentifier)
 
 ESX.RegisterServerCallback('esx_billing:getBills', function(source, cb)
-	local xPlayer = ESX.Player(source)
+	local xPlayer = getPlayer(source)
+
+	if not xPlayer then return cb({}) end
 
 	local result = MySQL.query.await('SELECT amount, id, label FROM billing WHERE identifier = ?', { xPlayer.getIdentifier() })
 	cb(result)
 end)
 
 ESX.RegisterServerCallback('esx_billing:getTargetBills', function(source, cb, target)
-	local xPlayer = ESX.Player(target)
+	local xPlayer = getPlayer(target)
 
 	if not xPlayer then return cb({}) end
 
@@ -81,13 +103,15 @@ ESX.RegisterServerCallback('esx_billing:getTargetBills', function(source, cb, ta
 end)
 
 ESX.RegisterServerCallback('esx_billing:payBill', function(source, cb, billId)
-	local xPlayer = ESX.Player(source)
+	local xPlayer = getPlayer(source)
+
+	if not xPlayer then return cb() end
 
 	local result = MySQL.single.await('SELECT sender, target_type, target, amount FROM billing WHERE id = ?', { billId })
 	if not result then return end
 
 	local amount = result.amount
-	local xTarget = ESX.Player(result.sender)
+	local xTarget = getPlayer(result.sender)
 
 	if result.target_type == 'player' then
 		if not xTarget then
