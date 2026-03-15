@@ -493,13 +493,19 @@ end)
 RegisterNetEvent("NSPx_HoldUp:DropCorpse")
 AddEventHandler("NSPx_HoldUp:DropCorpse", function(TargetCarry)
 	local playerPed = PlayerPedId()
+	local wasDeadBody = IsPedDeadOrDying(playerPed, true) or IsPedFatallyInjured(playerPed)
 	DetachEntity(playerPed, true, false)
 	FreezeEntityPosition(playerPed, false)
 	StatePlayer.BeCarry = false
 	StatePlayer.TargetCarry = 0
-	Wait(100)
-	SetEntityCoords(playerPed, GetEntityCoords(playerPed) + vector3(0, 0, 0.50))
-	ClearPedTasksImmediately(PlayerPedId())
+
+	if wasDeadBody then
+		Wait(100)
+		SetEntityCoords(playerPed, GetEntityCoords(playerPed) + vector3(0, 0, 0.50))
+		ClearPedTasksImmediately(playerPed)
+	else
+		ClearPedTasks(playerPed)
+	end
 end)
 
 RegisterNetEvent("NSPx_HoldUp:DropCarryEmote")
