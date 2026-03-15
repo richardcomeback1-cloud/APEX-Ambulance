@@ -1086,6 +1086,13 @@ Citizen.CreateThread(function()
             else
                 DisableAllControlActions(0)
 
+                -- อนุญาตให้หมุนกล้องได้ตลอด แม้กด ESC เข้า/ออกเมนู
+                EnableControlAction(0, 1, true)
+                EnableControlAction(0, 2, true)
+                EnableControlAction(1, 1, true)
+                EnableControlAction(1, 2, true)
+                EnableControlAction(0, 322, true)
+
                 if IsInBlockZone() then
                     -- ถ้าอยู่ใน BlockZone
                     EnableControlAction(0, select(2, getDeathKey('clearBody', 'X')), true)
