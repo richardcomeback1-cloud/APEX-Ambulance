@@ -57,6 +57,22 @@ local function dropCurrentCorpseCarry()
 	end
 end
 
+local function shouldAutoDropCorpseCarry(targetPed)
+	if not targetPed or not DoesEntityExist(targetPed) then
+		return true
+	end
+
+	local isDeadOrDying = IsPedDeadOrDying(targetPed, true)
+	local isFatallyInjured = IsPedFatallyInjured(targetPed)
+	local health = GetEntityHealth(targetPed)
+
+	if (not isDeadOrDying and not isFatallyInjured) or health > 101 then
+		return true
+	end
+
+	return false
+end
+
 local function getNearestPlayerInArea(range, predicate)
 	local myPed = PlayerPedId()
 	local myCoords = GetEntityCoords(myPed)
@@ -579,7 +595,7 @@ CreateThread(function()
 					sleep = 1200
 				else
 					local targetPed = GetPlayerPed(targetPlayerId)
-					if targetPed and DoesEntityExist(targetPed) and not IsPedDeadOrDying(targetPed, true) then
+					if shouldAutoDropCorpseCarry(targetPed) then
 						dropCurrentCorpseCarry()
 						sleep = 1200
 					end
