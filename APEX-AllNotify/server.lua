@@ -3,6 +3,27 @@ ESX = nil
 local playerJobCache = {}
 local playersByJob = {}
 
+local function fetchSharedObject()
+    if ESX then
+        return ESX
+    end
+
+    local ok, obj = pcall(function()
+        return exports['es_extended']:getSharedObject()
+    end)
+
+    if ok and obj then
+        ESX = obj
+        return ESX
+    end
+
+    TriggerEvent(Config.BASE, function(shared)
+        ESX = shared
+    end)
+
+    return ESX
+end
+
 local function updatePlayerJobCache(playerId, jobName)
     local pid = tonumber(playerId)
     if not pid then return end
@@ -63,9 +84,7 @@ end
 
 Citizen.CreateThread(function()
     while ESX == nil do
-        TriggerEvent(Config.BASE, function(obj)
-            ESX = obj
-        end)
+        fetchSharedObject()
         Citizen.Wait(200)
     end
 
@@ -159,6 +178,11 @@ AddEventHandler('nakin_allnotify:cacheJob', function(jobName)
 end)
 
 exports('AddNotify', function(target, data)
+    if type(target) == 'table' and data == nil then
+        sendNotify(-1, target)
+        return
+    end
+
     sendNotify(target, data)
 end)
 

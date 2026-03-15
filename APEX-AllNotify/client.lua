@@ -20,7 +20,16 @@ local BaseRight 		= 	{
 
 Citizen.CreateThread(function()
 	while ESX == nil do
-		TriggerEvent("esx:getSharedObject", function(obj) ESX = obj end)
+		local ok, shared = pcall(function()
+			return exports['es_extended']:getSharedObject()
+		end)
+
+		if ok and shared then
+			ESX = shared
+		else
+			TriggerEvent("esx:getSharedObject", function(obj) ESX = obj end)
+		end
+
 		Citizen.Wait(200)
 	end
 
