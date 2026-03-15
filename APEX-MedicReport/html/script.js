@@ -178,7 +178,7 @@ $(function () {
         $(".getbtn").click(function (event) {
             let caseid = event.target.dataset.caseid
             if (caseid) {
-                $.post('http://nakin_medicreport/getcase', JSON.stringify({
+                $.post('https://APEX-MedicReport/getcase', JSON.stringify({
                     caseid: caseid
                 }));
                 ClickSound.play();
@@ -188,7 +188,7 @@ $(function () {
         $(".gpsbtn").click(function (event) {
             let caseid = event.target.dataset.caseid
             if (caseid) {
-                $.post('http://nakin_medicreport/markGPS', JSON.stringify({
+                $.post('https://APEX-MedicReport/markGPS', JSON.stringify({
                     caseid: caseid
                 }));
                 ClickSound.play();
@@ -199,7 +199,7 @@ $(function () {
             let caseid = event.target.dataset.caseid
             let caseData = findCaseByCaseId(caseid)
             if (caseid && caseData && Number(caseData.status) === 3) {
-                $.post('http://nakin_medicreport/DeleteCase', JSON.stringify({
+                $.post('https://APEX-MedicReport/DeleteCase', JSON.stringify({
                     caseid: caseid
                 }));
                 ClickSound.play();
@@ -223,20 +223,20 @@ $(function () {
     }
 
     // $(".removeall").click(function () {
-    //     $.post('http://nakin_medicreport/RemoveAll', JSON.stringify({}));
+    //     $.post('https://APEX-MedicReport/RemoveAll', JSON.stringify({}));
     //     ClickSound.play();
     // })
 
     document.onkeyup = function (data) {
         if (data.which == 27) {
             ToggleUI(false)
-            $.post('http://nakin_medicreport/exit', JSON.stringify({}));
+            $.post('https://APEX-MedicReport/exit', JSON.stringify({}));
         }
 
     };
 
     function print(data) {
-        $.post('http://nakin_medicreport/print', JSON.stringify({data:data}));
+        $.post('https://APEX-MedicReport/print', JSON.stringify({data:data}));
     }
 
     $(".checknoti").click(function (event) {
@@ -350,7 +350,7 @@ $(function () {
     $(".addblacklistbtn").click(function (event) {
         let number = $("#blacklist").val();
         if (number) {
-            $.post('http://nakin_medicreport/addblacklistnumber', JSON.stringify({number:number,status:true}));
+            $.post('https://APEX-MedicReport/addblacklistnumber', JSON.stringify({number:number,status:true}));
             $("#blacklist").val("")
             ClickSound.play();
         }
@@ -359,7 +359,7 @@ $(function () {
     $(".deleteblacklistbtn").click(function (event) {
         let number = $("#blacklist").val();
         if (number) {
-            $.post('http://nakin_medicreport/addblacklistnumber', JSON.stringify({number:number,status:false}));
+            $.post('https://APEX-MedicReport/addblacklistnumber', JSON.stringify({number:number,status:false}));
             $("#blacklist").val("")
             ClickSound.play();
         }
@@ -379,7 +379,7 @@ $(function () {
     })
 
     // $(".removeall").click(function () {
-    //     $.post('http://nakin_medicreport/RemoveAll', JSON.stringify({}));
+    //     $.post('https://APEX-MedicReport/RemoveAll', JSON.stringify({}));
     //     ClickSound.play();
     // })
 
@@ -409,7 +409,7 @@ $(function () {
             $(".loadremoveall").css({ "width": "0%" });
             clearInterval(progressInterval); // หยุดอัพเดต progress
 
-            $.post('http://nakin_medicreport/RemoveAll', JSON.stringify({}));
+            $.post('https://APEX-MedicReport/RemoveAll', JSON.stringify({}));
             ClickSound.play();
 
             isHolding = false; // รีเซ็ตสถานะ

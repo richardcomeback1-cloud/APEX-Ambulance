@@ -5,6 +5,18 @@ local PhoneBlackList = {}
 local DefaultCaseRemainSeconds = (Config and Config["DefaultCaseRemainSeconds"]) or 2700
 local CaseOrderCounter = 0
 local MedicActiveCase = {}
+local AmbulancePlayers = {}
+
+local function setAmbulancePlayer(playerId, isAmbulance)
+    local pid = tonumber(playerId)
+    if not pid then return end
+
+    if isAmbulance then
+        AmbulancePlayers[pid] = true
+    else
+        AmbulancePlayers[pid] = nil
+    end
+end
 
 local function generateCaseId()
     local caseId = math.random(10000, 99999)
@@ -60,14 +72,27 @@ local function getPlayerNameSafe(source)
 end
 
 local function eachAmbulance(cb)
+    for playerId, _ in pairs(AmbulancePlayers) do
+        local xPlayer = ESX.GetPlayerFromId(playerId)
+        if xPlayer and xPlayer.job and xPlayer.job.name == 'ambulance' then
+            cb(playerId, xPlayer)
+        else
+            AmbulancePlayers[playerId] = nil
+        end
+    end
+end
+
+local function refreshAmbulanceCache()
     if ESX == nil then
         return
     end
 
+    AmbulancePlayers = {}
+
     for _, playerId in ipairs(ESX.GetPlayers()) do
         local xPlayer = ESX.GetPlayerFromId(playerId)
         if xPlayer and xPlayer.job and xPlayer.job.name == 'ambulance' then
-            cb(playerId, xPlayer)
+            setAmbulancePlayer(playerId, true)
         end
     end
 end
@@ -196,6 +221,16 @@ local function refreshCaseForAmbulance(caseData)
     end)
 end
 
+local function refreshCaseBulkForAmbulance(caseUpdates)
+    if type(caseUpdates) ~= 'table' or #caseUpdates == 0 then
+        return
+    end
+
+    eachAmbulance(function(playerId)
+        TriggerClientEvent(scriptName .. ':UpdateCaseBulk', playerId, caseUpdates)
+    end)
+end
+
 local function releaseAcceptedCasesByDoctor(doctorSource, exceptCaseId)
     local normalizedDoctorSource = tonumber(doctorSource)
     local normalizedExceptCaseId = tonumber(exceptCaseId)
@@ -239,11 +274,11 @@ local function updateCase(caseId, action)
         end
 
         if #removedSafeCaseIds > 0 then
-            eachAmbulance(function(playerId)
-                for _, removedCaseId in ipairs(removedSafeCaseIds) do
-                    TriggerClientEvent(scriptName .. ':UpdateCase', playerId, removedCaseId, 0)
-                end
-            end)
+            local caseUpdates = {}
+            for _, removedCaseId in ipairs(removedSafeCaseIds) do
+                caseUpdates[#caseUpdates + 1] = { caseid = removedCaseId, status = 0 }
+            end
+            refreshCaseBulkForAmbulance(caseUpdates)
         end
         return
     end
@@ -263,9 +298,9 @@ local function updateCase(caseId, action)
                 end
                 caseData.acceptedBySource = nil
                 table.remove(AlertCases, i)
-                eachAmbulance(function(playerId)
-                    TriggerClientEvent(scriptName .. ':UpdateCase', playerId, caseData.caseid, 0)
-                end)
+                refreshCaseBulkForAmbulance({
+                    { caseid = caseData.caseid, status = 0 }
+                })
             elseif action == 'getcase' then
                 if caseData.status == 3 then
                     return
@@ -317,19 +352,27 @@ local function updateCase(caseId, action)
 end
 
 local function removeCasesBySource(sourceId)
+    local removedCaseIds = {}
+
     for i = #AlertCases, 1, -1 do
         if AlertCases[i].id == sourceId then
-            local removedCaseId = AlertCases[i].caseid
+            removedCaseIds[#removedCaseIds + 1] = AlertCases[i].caseid
             table.remove(AlertCases, i)
-            eachAmbulance(function(playerId)
-                TriggerClientEvent(scriptName .. ':UpdateCase', playerId, removedCaseId, 0)
-            end)
         end
+    end
+
+    if #removedCaseIds > 0 then
+        local caseUpdates = {}
+        for _, removedCaseId in ipairs(removedCaseIds) do
+            caseUpdates[#caseUpdates + 1] = { caseid = removedCaseId, status = 0 }
+        end
+        refreshCaseBulkForAmbulance(caseUpdates)
     end
 end
 
 CreateThread(function()
     loadESX()
+    refreshAmbulanceCache()
     loadBlackListFromDB()
 
     print(('^2[%s]^7 server loaded'):format(scriptName))
@@ -378,16 +421,28 @@ AddEventHandler('playerDropped', function()
     removeCasesBySource(src)
     releaseAcceptedCasesByDoctor(src)
     MedicActiveCase[tonumber(src) or src] = nil
+    setAmbulancePlayer(src, false)
 end)
 
 AddEventHandler('esx:playerLoaded', function(playerId)
     local xPlayer = ESX.GetPlayerFromId(playerId)
     if not xPlayer or not xPlayer.job or xPlayer.job.name ~= 'ambulance' then
+        setAmbulancePlayer(playerId, false)
         return
     end
+
+    setAmbulancePlayer(playerId, true)
 
     TriggerClientEvent(scriptName .. ':RefreshBlackList', playerId, PhoneBlackList)
     for _, caseData in ipairs(AlertCases) do
         TriggerClientEvent(scriptName .. ':AddMedicCase', playerId, caseData, false)
     end
+end)
+
+AddEventHandler('esx:setJob', function(sourceId, job, _lastJob)
+    setAmbulancePlayer(sourceId, job and job.name == 'ambulance')
+end)
+
+RegisterNetEvent('nakin_medicreport:cacheJob', function(jobName)
+    setAmbulancePlayer(source, jobName == 'ambulance')
 end)

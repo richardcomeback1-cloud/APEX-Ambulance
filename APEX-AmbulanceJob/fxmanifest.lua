@@ -36,6 +36,7 @@ dependencies {
 	'es_extended',
     'ox_lib',
     'oxmysql',
+    'APEX-Billing',
 }
 
 ui_page "html/index.html"
