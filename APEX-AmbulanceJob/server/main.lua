@@ -34,6 +34,20 @@ ESX.RegisterServerCallback('esx_ambulancejob:checkBalance', function(source, cb)
     cb((bank + cash) >= amount)
 end)
 
+ESX.RegisterServerCallback('esx_ambulancejob:hasItem', function(source, cb, itemName, minCount)
+    local xPlayer = getXPlayer(source)
+    if not xPlayer or not itemName or itemName == '' then
+        cb(false)
+        return
+    end
+
+    local need = tonumber(minCount) or 1
+    local inv = xPlayer.getInventoryItem and xPlayer.getInventoryItem(itemName) or nil
+    local count = inv and (tonumber(inv.count) or 0) or 0
+
+    cb(count >= need)
+end)
+
 local dynamicTimerConfig = Config.DynamicEarlyRespawnTimer or {}
 
 local function getFallbackMinutes()

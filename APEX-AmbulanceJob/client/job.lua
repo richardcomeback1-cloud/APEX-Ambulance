@@ -91,6 +91,25 @@ local function canUseMedicActionItem(actionType)
 	return true, itemName
 end
 
+local function withMedicActionItem(actionType, onSuccess)
+	local itemName, itemLabel = getMedicActionItem(actionType)
+	if not itemName then
+		exports['pNotify']:SendNotification({ text = ('Missing Config.RequiredMedicItems.%s.name'):format(tostring(actionType)), type = 'error', timeout = 4000 })
+		return
+	end
+
+	ESX.TriggerServerCallback('esx_ambulancejob:hasItem', function(hasItem)
+		if not hasItem then
+			exports['pNotify']:SendNotification({ text = ('You do not have %s.'):format(itemLabel), type = 'error', timeout = 3000 })
+			return
+		end
+
+		if onSuccess then
+			onSuccess(itemName)
+		end
+	end, itemName, 1)
+end
+
 
 local function getBillingMenuConfig()
 	local defaults = {
@@ -192,84 +211,80 @@ local function runHealAnimation(callback)
 end
 
 local function doSingleRevive(targetPlayer, billAmount)
-	local canUseItem, reviveItem = canUseMedicActionItem('revive')
-	if not canUseItem then return end
+	withMedicActionItem('revive', function(reviveItem)
+		local targetPed = GetPlayerPed(targetPlayer)
+		if not IsPedDeadOrDying(targetPed, 1) then return end
 
-	local targetPed = GetPlayerPed(targetPlayer)
-	if not IsPedDeadOrDying(targetPed, 1) then return end
-
-	runReviveAnimation(function()
-		TriggerServerEvent('esx_ambulancejob:removeItem', reviveItem)
-		TriggerServerEvent('esx_ambulancejob:revive', GetPlayerServerId(targetPlayer))
-		sendMedicBill(targetPlayer, billAmount, "Fine: Revive")
+		runReviveAnimation(function()
+			TriggerServerEvent('esx_ambulancejob:removeItem', reviveItem)
+			TriggerServerEvent('esx_ambulancejob:revive', GetPlayerServerId(targetPlayer))
+			sendMedicBill(targetPlayer, billAmount, "Fine: Revive")
+		end)
 	end)
 end
 
 local function doMassRevive(radius, billAmount)
-	local canUseItem, reviveItem = canUseMedicActionItem('revive')
-	if not canUseItem then return end
-
-	local nearbyPlayers = ESX.Game.GetPlayersInArea(GetEntityCoords(PlayerPedId()), radius or 5.0)
-	local deadTargets = {}
-	for _, playerId in ipairs(nearbyPlayers) do
-		if playerId ~= PlayerId() then
-			local ped = GetPlayerPed(playerId)
-			if IsPedDeadOrDying(ped, 1) then table.insert(deadTargets, playerId) end
+	withMedicActionItem('revive', function(reviveItem)
+		local nearbyPlayers = ESX.Game.GetPlayersInArea(GetEntityCoords(PlayerPedId()), radius or 5.0)
+		local deadTargets = {}
+		for _, playerId in ipairs(nearbyPlayers) do
+			if playerId ~= PlayerId() then
+				local ped = GetPlayerPed(playerId)
+				if IsPedDeadOrDying(ped, 1) then table.insert(deadTargets, playerId) end
+			end
 		end
-	end
 
-	if #deadTargets == 0 then
-		exports['pNotify']:SendNotification({ text = 'No dead player nearby.', type = 'error', timeout = 3000 })
-		return
-	end
-
-	runReviveAnimation(function()
-		TriggerServerEvent('esx_ambulancejob:removeItem', reviveItem)
-		for _, playerId in ipairs(deadTargets) do
-			TriggerServerEvent('esx_ambulancejob:revive', GetPlayerServerId(playerId))
-			sendMedicBill(playerId, billAmount, "Fine: Mass Revive")
+		if #deadTargets == 0 then
+			exports['pNotify']:SendNotification({ text = 'No dead player nearby.', type = 'error', timeout = 3000 })
+			return
 		end
+
+		runReviveAnimation(function()
+			TriggerServerEvent('esx_ambulancejob:removeItem', reviveItem)
+			for _, playerId in ipairs(deadTargets) do
+				TriggerServerEvent('esx_ambulancejob:revive', GetPlayerServerId(playerId))
+				sendMedicBill(playerId, billAmount, "Fine: Mass Revive")
+			end
+		end)
 	end)
 end
 
 local function doSingleHeal(targetPlayer, billAmount)
-	local canUseItem, healItem = canUseMedicActionItem('heal')
-	if not canUseItem then return end
+	withMedicActionItem('heal', function(healItem)
+		local targetPed = GetPlayerPed(targetPlayer)
+		if GetEntityHealth(targetPed) <= 0 then return end
 
-	local targetPed = GetPlayerPed(targetPlayer)
-	if GetEntityHealth(targetPed) <= 0 then return end
-
-	runHealAnimation(function()
-		TriggerServerEvent('esx_ambulancejob:removeItem', healItem)
-		TriggerServerEvent('esx_ambulancejob:heal', GetPlayerServerId(targetPlayer), 'big')
-		sendMedicBill(targetPlayer, billAmount, "Fine: Heal")
+		runHealAnimation(function()
+			TriggerServerEvent('esx_ambulancejob:removeItem', healItem)
+			TriggerServerEvent('esx_ambulancejob:heal', GetPlayerServerId(targetPlayer), 'big')
+			sendMedicBill(targetPlayer, billAmount, "Fine: Heal")
+		end)
 	end)
 end
 
 local function doMassHeal(radius, billAmount)
-	local canUseItem, healItem = canUseMedicActionItem('heal')
-	if not canUseItem then return end
-
-	local nearbyPlayers = ESX.Game.GetPlayersInArea(GetEntityCoords(PlayerPedId()), radius or 5.0)
-	local aliveTargets = {}
-	for _, playerId in ipairs(nearbyPlayers) do
-		if playerId ~= PlayerId() then
-			local ped = GetPlayerPed(playerId)
-			if GetEntityHealth(ped) > 0 then table.insert(aliveTargets, playerId) end
+	withMedicActionItem('heal', function(healItem)
+		local nearbyPlayers = ESX.Game.GetPlayersInArea(GetEntityCoords(PlayerPedId()), radius or 5.0)
+		local aliveTargets = {}
+		for _, playerId in ipairs(nearbyPlayers) do
+			if playerId ~= PlayerId() then
+				local ped = GetPlayerPed(playerId)
+				if GetEntityHealth(ped) > 0 then table.insert(aliveTargets, playerId) end
+			end
 		end
-	end
 
-	if #aliveTargets == 0 then
-		exports['pNotify']:SendNotification({ text = 'No player nearby.', type = 'error', timeout = 3000 })
-		return
-	end
-
-	runHealAnimation(function()
-		TriggerServerEvent('esx_ambulancejob:removeItem', healItem)
-		for _, playerId in ipairs(aliveTargets) do
-			TriggerServerEvent('esx_ambulancejob:heal', GetPlayerServerId(playerId), 'big')
-			sendMedicBill(playerId, billAmount, "Fine: Mass Heal")
+		if #aliveTargets == 0 then
+			exports['pNotify']:SendNotification({ text = 'No player nearby.', type = 'error', timeout = 3000 })
+			return
 		end
+
+		runHealAnimation(function()
+			TriggerServerEvent('esx_ambulancejob:removeItem', healItem)
+			for _, playerId in ipairs(aliveTargets) do
+				TriggerServerEvent('esx_ambulancejob:heal', GetPlayerServerId(playerId), 'big')
+				sendMedicBill(playerId, billAmount, "Fine: Mass Heal")
+			end
+		end)
 	end)
 end
 

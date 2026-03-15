@@ -1188,7 +1188,9 @@ function clearBodyVoice()
                 isClearingBody = true
                 ClearBody = false
                 clearBodyUi(true)
-                stabilizeBody()
+                local playerPed = PlayerPedId()
+                FreezeEntityPosition(playerPed, false)
+                ClearPedTasksImmediately(playerPed)
                 playClearBodyBounce()
 
                 local clearBodyCooldownMs = getDeathKeyCooldownMs('clearBody', 30)

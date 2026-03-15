@@ -279,7 +279,7 @@ Citizen.CreateThread(function()
 			sleep = 25
 			for k, v in pairs(Alert) do
 				if v.time > 0 and v.wp_key then
-					if IsControlPressed(0, Keys["LEFTSHIFT"]) and IsDisabledControlPressed(0, Keys[tostring(v.wp_key)]) then
+					if IsControlPressed(0, Keys["LEFTSHIFT"]) and IsDisabledControlJustPressed(0, Keys[tostring(v.wp_key)]) then
 						SetNewWaypoint(v.coords.x, v.coords.y)
 
 						if v.case then
