@@ -34,6 +34,29 @@ local Status_Toxic = 0
 
 PlayerListId = {}
 
+local function resetCarryToxicState()
+	if Next_hide > GetGameTimer() or Status_Toxic == 4 then
+		SendNUIMessage({
+			action = "Hide"
+		})
+		Next_hide = 0
+	end
+	Status_Toxic = 0
+	Next_show = 0
+end
+
+local function dropCurrentCorpseCarry()
+	if StatePlayer.IsCarry and StatePlayer.CarryTarget and StatePlayer.CarryTarget > 0 then
+		TriggerServerEvent("NSPx_HoldUp:DropCorpse", StatePlayer.CarryTarget)
+		if StatePlayer.LastDictAnim and StatePlayer.LastAnim then
+			StopAnimTask(PlayerPedId(), StatePlayer.LastDictAnim, StatePlayer.LastAnim, 3.0)
+		end
+		StatePlayer.IsCarry = false
+		StatePlayer.CarryTarget = 0
+		resetCarryToxicState()
+	end
+end
+
 local function getNearestPlayerInArea(range, predicate)
 	local myPed = PlayerPedId()
 	local myCoords = GetEntityCoords(myPed)
@@ -130,19 +153,7 @@ function OpenActionMenuInteraction(target)
 					return
 				end
 				if StatePlayer.IsCarry then
-					StatePlayer.IsCarry = false
-					StopAnimTask(PlayerPedId(), StatePlayer.LastDictAnim, StatePlayer.LastAnim, 3.0)
-					TriggerServerEvent("NSPx_HoldUp:DropCorpse", StatePlayer.CarryTarget)
-					StatePlayer.CarryTarget = 0
-
-					if Next_hide > GetGameTimer() or Status_Toxic == 4 then
-						SendNUIMessage({
-							action = "Hide"
-						})
-						Next_hide = 0
-					end
-					Status_Toxic = 0
-					Next_show = 0
+					dropCurrentCorpseCarry()
 					return
 				end
 
@@ -389,15 +400,7 @@ AddEventHandler("NSPx_HoldUp:ClearCarry", function(TargetCarry)
 	StatePlayer.IsCarry = false
 	StopAnimTask(PlayerPedId(), StatePlayer.LastDictAnim, StatePlayer.LastAnim, 3.0)
 	StatePlayer.CarryTarget = 0
-
-	if Next_hide > GetGameTimer() or Status_Toxic == 4 then
-		SendNUIMessage({
-			action = "Hide"
-		})
-		Next_hide = 0
-	end
-	Status_Toxic = 0
-	Next_show = 0
+	resetCarryToxicState()
 end)
 
 RegisterNetEvent("NSPx_HoldUp:CarryCorpse")
@@ -505,12 +508,7 @@ end)
 
 AddEventHandler('playerSpawned', function()
 	if StatePlayer.IsCarry then
-		TriggerServerEvent("NSPx_HoldUp:DropCorpse", StatePlayer.CarryTarget)
-		if StatePlayer.LastDictAnim and StatePlayer.LastAnim then
-			StopAnimTask(PlayerPedId(), StatePlayer.LastDictAnim, StatePlayer.LastAnim, 3.0)
-		end
-		StatePlayer.IsCarry = false
-		StatePlayer.CarryTarget = 0
+		dropCurrentCorpseCarry()
 		PlayerListId = {}
 	end
 
@@ -534,18 +532,7 @@ end)
 AddEventHandler('esx:onPlayerDeath', function(data)
 	Wait(200)
 	if StatePlayer.IsCarry and not StatePlayer.BeCarry then
-		TriggerServerEvent("NSPx_HoldUp:DropCorpse", StatePlayer.CarryTarget)
-		StatePlayer.IsCarry = false
-		StatePlayer.CarryTarget = 0
-
-		if Next_hide > GetGameTimer() or Status_Toxic == 4 then
-			SendNUIMessage({
-				action = "Hide"
-			})
-			Next_hide = 0
-		end
-		Status_Toxic = 0
-		Next_show = 0
+		dropCurrentCorpseCarry()
 	end
 	if StatePlayer.IsCarryEmote then
 		if StatePlayer.BeCarry then
@@ -586,28 +573,42 @@ CreateThread(function()
 			end
 
 			if StatePlayer.IsCarry then
-				if (Next_hide and Next_hide < GetGameTimer()) and Next_show == 0 and Status_Toxic <= 3 then
-					local toxic_level = Player(StatePlayer.CarryTarget).state.toxic
-					Status_Toxic = toxic_level
-					SendNUIMessage({ action = "Hide" })
-					Next_hide = 0
-					Next_show = TimePhase(toxic_level)
+				local targetPlayerId = GetPlayerFromServerId(StatePlayer.CarryTarget)
+				if targetPlayerId == -1 then
+					dropCurrentCorpseCarry()
+					sleep = 1200
+				else
+					local targetPed = GetPlayerPed(targetPlayerId)
+					if targetPed and DoesEntityExist(targetPed) and not IsPedDeadOrDying(targetPed, true) then
+						dropCurrentCorpseCarry()
+						sleep = 1200
+					end
 				end
 
-				if Next_show and Next_show < GetGameTimer() and Next_hide == 0 and Status_Toxic <= 3 then
-					local toxic_level = Player(StatePlayer.CarryTarget).state.toxic
-					Status_Toxic = toxic_level
-					Next_hide = TimePhase(toxic_level)
-					Next_show = 0
-					SendNUIMessage({
-						action = "Show",
-						Phase = toxic_level
-					})
-				end
+				if StatePlayer.IsCarry then
+					if (Next_hide and Next_hide < GetGameTimer()) and Next_show == 0 and Status_Toxic <= 3 then
+						local toxic_level = Player(StatePlayer.CarryTarget).state.toxic
+						Status_Toxic = toxic_level
+						SendNUIMessage({ action = "Hide" })
+						Next_hide = 0
+						Next_show = TimePhase(toxic_level)
+					end
 
-				if Status_Toxic == 4 then
-					SetEntityHealth(playerPed, GetEntityHealth(playerPed) - 2)
-					sleep = 1000
+					if Next_show and Next_show < GetGameTimer() and Next_hide == 0 and Status_Toxic <= 3 then
+						local toxic_level = Player(StatePlayer.CarryTarget).state.toxic
+						Status_Toxic = toxic_level
+						Next_hide = TimePhase(toxic_level)
+						Next_show = 0
+						SendNUIMessage({
+							action = "Show",
+							Phase = toxic_level
+						})
+					end
+
+					if Status_Toxic == 4 then
+						SetEntityHealth(playerPed, GetEntityHealth(playerPed) - 2)
+						sleep = 1000
+					end
 				end
 			end
 		end
@@ -623,18 +624,7 @@ exports('DropPlayer', function()
 		StatePlayer.IsCarryEmote = false
 	end
 	if StatePlayer.IsCarry then
-		TriggerServerEvent("NSPx_HoldUp:DropCorpse", StatePlayer.CarryTarget)
-		StatePlayer.IsCarry = false
-		StatePlayer.CarryTarget = 0
-
-		if Next_hide > GetGameTimer() or Status_Toxic == 4 then
-			SendNUIMessage({
-				action = "Hide"
-			})
-			Next_hide = 0
-		end
-		Status_Toxic = 0
-		Next_show = 0
+		dropCurrentCorpseCarry()
 	end
 end)
 
@@ -668,14 +658,7 @@ end)
 
 RegisterNetEvent("NSPx_HoldUp:Hide")
 AddEventHandler("NSPx_HoldUp:Hide", function()
-	if Next_hide > GetGameTimer() or Status_Toxic == 4 then
-		SendNUIMessage({
-			action = "Hide"
-		})
-		Next_hide = 0
-	end
-	Status_Toxic = 0
-	Next_show = 0
+	resetCarryToxicState()
 end)
 
 exports("Hide_Toxic", function()
