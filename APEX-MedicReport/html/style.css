@@ -237,52 +237,102 @@ body {
 }
 
 .status-icon {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  flex: 0 0 9px;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
   position: relative;
-  box-shadow: 0 0 8px rgba(255, 112, 112, 0.45);
-  animation: statusPulse 1.3s ease-in-out infinite;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .status-icon::after {
   content: '';
   position: absolute;
-  inset: -3px;
+  inset: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  text-shadow: 0 0 10px currentColor;
+  transform-origin: center;
+}
+
+.status-icon::before {
+  content: '';
+  position: absolute;
+  inset: -4px;
   border-radius: 50%;
   border: 1px solid currentColor;
-  opacity: 0.35;
+  opacity: 0;
+  transform: scale(0.75);
+}
+
+.status-icon.is-waiting::before,
+.status-icon.is-going::before {
   animation: statusRing 1.3s ease-out infinite;
 }
 
 .status-icon.is-waiting {
-  background: #ff7676;
   color: #ff7676;
 }
 
+.status-icon.is-waiting::after {
+  content: '!';
+  animation: statusAlert 0.8s ease-in-out infinite;
+}
+
 .status-icon.is-going {
-  background: #ffbc00;
   color: #ffbc00;
-  animation-duration: 0.95s;
+}
+
+.status-icon.is-going::after {
+  content: '➜';
+  animation: statusMove 1s ease-in-out infinite;
 }
 
 .status-icon.is-safe {
-  background: #2fd4ff;
   color: #2fd4ff;
-  animation-duration: 1.7s;
 }
 
-@keyframes statusPulse {
-  0%, 100% { transform: scale(0.95); }
-  50% { transform: scale(1.08); }
+.status-icon.is-safe::after {
+  content: '✓';
+  animation: statusSafe 1.8s ease-in-out infinite;
+}
+
+.status-icon.is-safe::before {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 1px solid currentColor;
+  opacity: 0.18;
+}
+
+@keyframes statusAlert {
+  0%, 100% { transform: translateY(0) scale(1); }
+  35% { transform: translateY(-1px) scale(1.15); }
+  65% { transform: translateY(0) scale(0.92); }
+}
+
+@keyframes statusMove {
+  0%, 100% { transform: translateX(0); opacity: 0.85; }
+  50% { transform: translateX(2px); opacity: 1; }
+}
+
+@keyframes statusSafe {
+  0%, 100% { transform: scale(0.95); opacity: 0.9; }
+  50% { transform: scale(1.08); opacity: 1; }
 }
 
 @keyframes statusRing {
-  0% { transform: scale(0.8); opacity: 0.45; }
-  80% { transform: scale(1.25); opacity: 0; }
-  100% { transform: scale(1.25); opacity: 0; }
+  0% { transform: scale(0.75); opacity: 0.45; }
+  80% { transform: scale(1.2); opacity: 0; }
+  100% { transform: scale(1.2); opacity: 0; }
 }
+
 .status span {
   white-space: nowrap;
   overflow: hidden;
