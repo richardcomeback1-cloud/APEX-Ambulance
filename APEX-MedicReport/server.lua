@@ -71,6 +71,20 @@ local function getPlayerNameSafe(source)
     return GetPlayerName(source) or ('ID ' .. tostring(source))
 end
 
+local function getRealRespawnRemainSeconds(source)
+    local playerState = Player(source) and Player(source).state
+    if not playerState then
+        return nil
+    end
+
+    local remain = tonumber(playerState.ambulanceRespawnRemain)
+    if remain and remain >= 0 then
+        return math.floor(remain)
+    end
+
+    return nil
+end
+
 local function eachAmbulance(cb)
     for playerId, _ in pairs(AmbulancePlayers) do
         local xPlayer = ESX.GetPlayerFromId(playerId)
@@ -167,13 +181,15 @@ local function addCase(source, data)
 
     local callerName = getPlayerNameSafe(source)
 
+    local realRemain = getRealRespawnRemainSeconds(source)
+
     local caseData = {
         id = source,
         ac = randomCaseId,
         caseid = randomCaseId,
         name = callerName,
         phone = phone,
-        remain = (data and tonumber(data.remain)) or DefaultCaseRemainSeconds,
+        remain = (data and tonumber(data.remain)) or realRemain or DefaultCaseRemainSeconds,
         status = 1,
         text = data and data.text or 'ต้องการความช่วยเหลือ',
         type = data and data.type or 'normal',

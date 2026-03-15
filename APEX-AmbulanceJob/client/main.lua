@@ -68,6 +68,7 @@ AddEventHandler('esx:onPlayerSpawn', function()
 	IsDead = false
 	bodywarp = false
 	ClearBody = false
+	setDeathRemainState(nil)
 	closeUi()
 	if FirstSpawn then
         exports.spawnmanager:setAutoSpawn(false) -- ปิด auto respawn
@@ -106,6 +107,15 @@ local ZONE_DETECTION = Config.ZoneDetection
 
 -- Cache สำหรับประสิทธิภาพ
 local ZONE_PRIORITY = {"training", "airdrop", "stelshop", "replight", "waterpipe", "megacement"}
+
+local function setDeathRemainState(seconds)
+    local sec = tonumber(seconds)
+    if sec and sec >= 0 then
+        LocalPlayer.state:set('ambulanceRespawnRemain', math.ceil(sec), true)
+    else
+        LocalPlayer.state:set('ambulanceRespawnRemain', nil, true)
+    end
+end
 
 local function getDeathKey(name, fallback)
     local configured = (Config.DeathKeybinds and Config.DeathKeybinds[name]) or fallback
@@ -1501,6 +1511,7 @@ function startNoAmbulanceTimer()
         while IsDead and noAmbulanceTimer > 0 do
             Citizen.Wait(1000)
             noAmbulanceTimer = noAmbulanceTimer - 1
+            setDeathRemainState(noAmbulanceTimer)
             local percent = (noAmbulanceTimer / noAmbulanceTimerMax) * 100
             SendNUIMessage({
                 type = "progress",
@@ -1524,6 +1535,7 @@ function startNoAmbulanceTimer()
                 end
 
                 RespawnTime("00:00")
+                setDeathRemainState(0)
 
                 Citizen.Wait(5)
                 if IsDisabledControlPressed(0, select(2, getDeathKey('respawn', 'G'))) and not isPress then
@@ -1567,6 +1579,7 @@ function startDeathTimer(dynamicTimerMs)
             -- early respawn
             if earlySpawnTimer > 0 then
                 earlySpawnTimer = earlySpawnTimer - 0.25
+                setDeathRemainState(earlySpawnTimer)
                 local percent = (earlySpawnTimer / maxTimeSpawn) * 100
                 SendNUIMessage({
                     type = "progress",
@@ -1583,6 +1596,7 @@ function startDeathTimer(dynamicTimerMs)
 
                 if dynamicTimerEnabled then
                     RespawnTime("00:00")
+                    setDeathRemainState(bleedoutTimer)
 
                     if IsDisabledControlPressed(0, select(2, getDeathKey('respawn', 'G'))) and not isPress then
                         isPress = true
@@ -1591,6 +1605,7 @@ function startDeathTimer(dynamicTimerMs)
                     end
                 elseif bleedoutTimer > 0 then
                     bleedoutTimer = bleedoutTimer - 0.25
+                    setDeathRemainState(bleedoutTimer)
                     local percent = (bleedoutTimer / maxTimeBleedout) * 100
                     SendNUIMessage({
                         type = "progress",
@@ -1600,6 +1615,7 @@ function startDeathTimer(dynamicTimerMs)
                 else
                     -- bleedout หมดเวลา
                     RespawnTime("00:00")
+                    setDeathRemainState(0)
                     RemoveItemsAfterRPDeath()
                     break
                 end
@@ -1622,6 +1638,7 @@ end
 
 function RemoveItemsAfterRPDeath()
     TriggerServerEvent('esx_ambulancejob:setDeathStatus', false)
+    setDeathRemainState(nil)
 
     Citizen.CreateThread(function()
         if bodywarp then
@@ -1694,6 +1711,7 @@ AddEventHandler('esx_ambulancejob:reviveinwarzone', function()
     local playerPed = PlayerPedId()
 
 	TriggerServerEvent('esx_ambulancejob:setDeathStatus', false)
+	setDeathRemainState(nil)
 
 	Citizen.CreateThread(function()
         DoScreenFadeOut(800)
@@ -1716,6 +1734,7 @@ AddEventHandler('esx_ambulancejob:revive', function()
     local playerPed = PlayerPedId()
 
 	TriggerServerEvent('esx_ambulancejob:setDeathStatus', false)
+	setDeathRemainState(nil)
 
 	Citizen.CreateThread(function()
         DoScreenFadeOut(800)
@@ -1739,6 +1758,7 @@ AddEventHandler('esx_ambulancejob:reviveall', function()
 	local playerPed = PlayerPedId()
  	if IsDead  then
 		TriggerServerEvent('esx_ambulancejob:setDeathStatus', false)
+		setDeathRemainState(nil)
 
 		Citizen.CreateThread(function()
 			DoScreenFadeOut(800)
