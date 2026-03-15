@@ -7,6 +7,29 @@ $(function () {
     let maxnoti = 2
     let deletenoti = 0
 
+    const getAlertTheme = (icon) => {
+        const value = (icon || '').toLowerCase();
+        if (value.indexOf('ambulance') !== -1 || value.indexOf('medic') !== -1) {
+            return 'ambulance';
+        }
+        if (value.indexOf('police') !== -1) {
+            return 'police';
+        }
+        if (value.indexOf('gang') !== -1) {
+            return 'gang';
+        }
+        return 'default';
+    }
+
+    const escapeHtml = (value) => {
+        return String(value || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
     window.addEventListener('message', function(event) {
         var item = event.data;
 
@@ -113,47 +136,21 @@ $(function () {
 
         if (item.type == "add") {
             if (item.data) {
-                // let wpbtn = ""
-                // let icon = ""
-                // if (item.data.wp_key) {
-                //     wpbtn = `<div style='display:flex;height:45%;padding-right:1svh;column-gap:0.2svh'>
-                //     <span class="kb-btn">SHIFT</span>
-                //     <span style='font-size:1.8svh;margin-right: 0.3svh'>+</span>
-                //     <span class="kb-btn">${item.data.wp_key}</span>
-                //     </div><br>`
-                    // wpbtn = `<span>SHIFT</span><span>${item.data.wp_key}</span><br>`
-                // }
-                // $(".alertlist").append(`
-                //     <div class="alert alert-enter" id="${item.data.index}">
-                //     <div class="icon"><img src="img/${item.data.icon}.png"></div>
-                //         <div class="text">${item.data.text} <img src="img/location.png">${item.data.zone}${wpbtn} <div class="timebar" id="bar${item.data.index}"></div> </div>
-                //     </div>
-                // `);
-                // $(".alertlist").append(`
-                //     <div class="alert ${item.data.icon+'-top'}" id="${item.data.index}" style="transform: translateX(0%); opacity: 1;">
-                //     <div class="icon ${item.data.icon}"><span style="font-size: 2.6svh;">${item.data.wp_key}</span></div>
-                //     <div class="text">
-                //         <div class="case">
-                //             <span class="case-name">${item.data.text}</span>
-                //             <div class="location-area">
-                //                 <div class="location-txt">Location : </div>
-                //                 <div class="location-value">${item.data.zone}</div>
-                //             </div>
-                //         </div>
-                //         ${wpbtn}
-                //         <div class="timebar" id="bar${item.data.index}"></div>
-                //     </div>
-                // </div>
-                // `);
+                const theme = getAlertTheme(item.data.icon)
+                const wpKey = item.data.wp_key ? escapeHtml(item.data.wp_key) : '-'
+                const text = escapeHtml(item.data.text)
+                const zone = escapeHtml(item.data.zone)
+
                 $(".alertlist").append(`
-                    <div class="alert alert-enter" id="${item.data.index}">
+                    <div class="alert alert-enter theme-${theme}" id="${item.data.index}">
+                        <div class="alert-glow"></div>
                         <div class="icon">
-                            <span>${item.data.wp_key}</span>
+                            <span>${wpKey}</span>
                         </div>
-                        <div class="control-btn"><div class="shift">SHIFT</div>+<div class="num-alert">${item.data.wp_key}</div></div>
+                        <div class="control-btn"><div class="shift">SHIFT</div>+<div class="num-alert">${wpKey}</div></div>
                         <div class="infor-alert">
-                            <span style="font-size: 12px;">${item.data.text}</span>
-                            <span>LOCATION : ${item.data.zone}</span>
+                            <span class="case-title">${text}</span>
+                            <span class="case-location">LOCATION : ${zone}</span>
                         </div>
                         <div class="bg-bar">
                             <div class="load-bar">
@@ -186,7 +183,7 @@ $(function () {
             });
             setTimeout(function() {
                 $("#"+item.id+"").remove();
-            }, 100);
+            }, 200);
         }
         ///////////////////////////////////////////////////////// Alert
 
