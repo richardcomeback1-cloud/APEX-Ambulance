@@ -25,7 +25,7 @@ local clearAmbulancePlayerBlips = function() end
 Citizen.CreateThread(function()
 	while ESX == nil do
         ESX = exports['es_extended']:getSharedObject()
-        Citizen.Wait(0)
+        Citizen.Wait(100)
     end
 
 	while ESX.PlayerData == nil or ESX.PlayerData.job == nil do

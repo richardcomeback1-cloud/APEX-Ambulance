@@ -13,7 +13,7 @@ end)
 function LoadAnimationDictionary(animationD)
 	while (not HasAnimDictLoaded(animationD)) do
 		RequestAnimDict(animationD)
-		Citizen.Wait(1)
+		Citizen.Wait(10)
 	end
 end
 
@@ -563,15 +563,46 @@ end)
 
 CreateThread(function()
 	while true do
-		local vehicle = GetVehiclePedIsIn(PlayerPedId(), false)
-		if vehicle > 0 and DoesEntityExist(vehicle) then
-			if StatePlayer.IsCarryEmote then
-				ClearPedTasks(PlayerPedId())
+		local sleep = 2000
+		local playerPed = PlayerPedId()
+
+		if StatePlayer.IsCarry or StatePlayer.IsCarryEmote or StatePlayer.BeCarry then
+			sleep = 400
+			local vehicle = GetVehiclePedIsIn(playerPed, false)
+			if vehicle > 0 and DoesEntityExist(vehicle) and StatePlayer.IsCarryEmote then
+				ClearPedTasks(playerPed)
 				TriggerServerEvent("NSPx_HoldUp:DropCarryEmote", StatePlayer.TargetCarry)
 				StatePlayer.IsCarryEmote = false
 			end
+
+			if StatePlayer.IsCarry then
+				if (Next_hide and Next_hide < GetGameTimer()) and Next_show == 0 and Status_Toxic <= 3 then
+					local toxic_level = Player(StatePlayer.CarryTarget).state.toxic
+					Status_Toxic = toxic_level
+					SendNUIMessage({ action = "Hide" })
+					Next_hide = 0
+					Next_show = TimePhase(toxic_level)
+				end
+
+				if Next_show and Next_show < GetGameTimer() and Next_hide == 0 and Status_Toxic <= 3 then
+					local toxic_level = Player(StatePlayer.CarryTarget).state.toxic
+					Status_Toxic = toxic_level
+					Next_hide = TimePhase(toxic_level)
+					Next_show = 0
+					SendNUIMessage({
+						action = "Show",
+						Phase = toxic_level
+					})
+				end
+
+				if Status_Toxic == 4 then
+					SetEntityHealth(playerPed, GetEntityHealth(playerPed) - 2)
+					sleep = 1000
+				end
+			end
 		end
-		Wait(1000)
+
+		Wait(sleep)
 	end
 end)
 
@@ -618,39 +649,6 @@ AddEventHandler("NSPx_HoldUp:ChkToxic", function(id_player)
 	end
 end)
 
-Citizen.CreateThread(function()
-	while true do
-		Wait(1000)
-
-		if StatePlayer.IsCarry then
-			if (Next_hide and Next_hide < GetGameTimer()) and Next_show == 0 and Status_Toxic <= 3 then
-				local toxic_level = Player(StatePlayer.CarryTarget).state.toxic
-				Status_Toxic = toxic_level
-				SendNUIMessage({
-					action = "Hide"
-				})
-				Next_hide = 0
-				Next_show = TimePhase(toxic_level)
-			end
-
-			if Next_show and Next_show < GetGameTimer() and Next_hide == 0 and Status_Toxic <= 3 then
-				local toxic_level = Player(StatePlayer.CarryTarget).state.toxic
-				Status_Toxic = toxic_level
-				Next_hide = TimePhase(toxic_level)
-				Next_show = 0
-				SendNUIMessage({
-					action = "Show",
-					Phase = toxic_level
-				})
-			end
-
-			if Status_Toxic == 4 then
-				local playerped = PlayerPedId()
-				SetEntityHealth(playerped, GetEntityHealth(playerped) - 2)
-			end
-		end
-	end
-end)
 
 exports("Refresh_Toxic", function()
 	if StatePlayer.BeCarry then

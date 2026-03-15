@@ -53,7 +53,7 @@ function ScriptWork()
 	function LoadAnimDict(dict)
 		while (not HasAnimDictLoaded(dict)) do
 			RequestAnimDict(dict)
-			Citizen.Wait(0)
+			Citizen.Wait(10)
 		end
 	end
 
@@ -135,8 +135,11 @@ function ScriptWork()
 	local DeathReported = false
 	Citizen.CreateThread(function()
 		while true do
-			Citizen.Wait(800)
-			if ESX and ESX.GetPlayerData() and ESX.GetPlayerData().job and ESX.GetPlayerData().job.name == "ambulance" then
+			local sleep = 2000
+			local playerData = ESX and ESX.GetPlayerData and ESX.GetPlayerData()
+
+			if playerData and playerData.job and playerData.job.name == "ambulance" then
+				sleep = 800
 				local ped = PlayerPedId()
 				if IsEntityDead(ped) then
 					if not DeathReported then
@@ -148,8 +151,9 @@ function ScriptWork()
 				end
 			else
 				DeathReported = false
-				Citizen.Wait(1000)
 			end
+
+			Citizen.Wait(sleep)
 		end
 	end)
 
@@ -335,23 +339,26 @@ function ScriptWork()
 
 	Citizen.CreateThread(function()
 		while true do
-			if next(AlertData) == nil then
-				Citizen.Wait(2000)
-			else
-				Citizen.Wait(1000)
-			end
-			for k, v in pairs(AlertData) do
-				v.time = v.time + 1
-				v.casetime = ConvertSecondsToMinutes(v.time - v.servertime)
-				v.remain = tonumber(v.remain) or Config["DefaultCaseRemainSeconds"] or 2700
-				if v.remain > 0 and v.status ~= 3 then
-					v.remain = v.remain - 1
+			local hasCases = next(AlertData) ~= nil
+			local sleep = hasCases and 1000 or 5000
+
+			if hasCases then
+				for _, v in pairs(AlertData) do
+					v.time = v.time + 1
+					v.casetime = ConvertSecondsToMinutes(v.time - v.servertime)
+					v.remain = tonumber(v.remain) or Config["DefaultCaseRemainSeconds"] or 2700
+					if v.remain > 0 and v.status ~= 3 then
+						v.remain = v.remain - 1
+					end
+					v.remaintext = ConvertSecondsToClock(v.remain)
 				end
-				v.remaintext = ConvertSecondsToClock(v.remain)
+
+				if ToggleUI then
+					UpdateCaseTimeUI()
+				end
 			end
-			if ToggleUI then
-				UpdateCaseTimeUI()
-			end
+
+			Citizen.Wait(sleep)
 		end
 	end)
 
