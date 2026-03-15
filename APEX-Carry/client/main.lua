@@ -106,6 +106,81 @@ local function getNearestPlayerInArea(range, predicate)
 	return nearestPlayer, nearestDist
 end
 
+local function canUseAliveCarryMode()
+	if not ESX or not ESX.PlayerData or not ESX.PlayerData.job then
+		return false
+	end
+
+	local jobName = ESX.PlayerData.job.name
+	return jobName == "ambulance" or jobName == "police" or jobName == "mechanic" or jobName == "admin" or jobName == "council"
+end
+
+local function startDeadCarryShortcut()
+	if IsPedBeingStunned(PlayerPedId()) then
+		return
+	end
+
+	if StatePlayer.IsCarry then
+		dropCurrentCorpseCarry()
+		return
+	end
+
+	local targetPlayer = getNearestPlayerInArea(2.0, function(targetPed)
+		return IsPedDeadOrDying(targetPed, true)
+	end)
+
+	if not targetPlayer then
+		return
+	end
+
+	StatePlayer.IsCarry = true
+	StatePlayer.CarryType = "corpse"
+	LoadAnimationDictionary("missfinale_c2mcs_1")
+	TaskPlayAnim(PlayerPedId(), "missfinale_c2mcs_1", "fin_c2_mcs_1_camman", 8.0, 8.0, -1, 49, 0,
+		false, false, false)
+	StatePlayer.LastAnim = "fin_c2_mcs_1_camman"
+	StatePlayer.LastDictAnim = "missfinale_c2mcs_1"
+
+	StatePlayer.CarryTarget = tonumber(GetPlayerServerId(targetPlayer))
+	TriggerServerEvent("NSPx_HoldUp:CarryCorpse", StatePlayer.CarryTarget)
+	while not HasAnimDictLoaded("dead@fall") do
+		RequestAnimDict("dead@fall")
+		Citizen.Wait(100)
+	end
+
+	ClearPedTasksImmediately(GetPlayerPed(targetPlayer))
+end
+
+local function startAliveCarryShortcut()
+	if not canUseAliveCarryMode() then
+		return
+	end
+
+	if StatePlayer.IsCarry then
+		dropCurrentCorpseCarry()
+		return
+	end
+
+	local targetPlayer = getNearestPlayerInArea(2.0, function(targetPed)
+		return not IsPedDeadOrDying(targetPed)
+	end)
+
+	if not targetPlayer then
+		return
+	end
+
+	StatePlayer.IsCarry = true
+	StatePlayer.CarryType = "alive"
+	LoadAnimationDictionary("missfinale_c2mcs_1")
+	TaskPlayAnim(PlayerPedId(), "missfinale_c2mcs_1", "fin_c2_mcs_1_camman", 8.0, 8.0, -1, 49, 0,
+		false, false, false)
+	StatePlayer.LastAnim = "fin_c2_mcs_1_camman"
+	StatePlayer.LastDictAnim = "missfinale_c2mcs_1"
+
+	StatePlayer.CarryTarget = tonumber(GetPlayerServerId(targetPlayer))
+	TriggerServerEvent("NSPx_HoldUp:CarrySync", StatePlayer.CarryTarget)
+end
+
 function OpenActionMenuInteraction(target)
 	if StatePlayer.IsCarryEmote then
 		ESX.UI.Menu.Open(
@@ -167,58 +242,9 @@ function OpenActionMenuInteraction(target)
 			ESX.UI.Menu.CloseAll()
 
 			if data2.current.value == 'drag3' then
-				if IsPedBeingStunned(PlayerPedId()) then
-					return
-				end
-				if StatePlayer.IsCarry then
-					dropCurrentCorpseCarry()
-					return
-				end
-
-				local targetPlayer = getNearestPlayerInArea(2.0, function(targetPed)
-					return IsPedDeadOrDying(targetPed, true)
-				end)
-
-				if targetPlayer then
-					StatePlayer.IsCarry = true
-					StatePlayer.CarryType = "corpse"
-					LoadAnimationDictionary("missfinale_c2mcs_1")
-					TaskPlayAnim(PlayerPedId(), "missfinale_c2mcs_1", "fin_c2_mcs_1_camman", 8.0, 8.0, -1, 49, 0,
-						false, false, false)
-					StatePlayer.LastAnim = "fin_c2_mcs_1_camman"
-					StatePlayer.LastDictAnim = "missfinale_c2mcs_1"
-
-					StatePlayer.CarryTarget = tonumber(GetPlayerServerId(targetPlayer))
-					TriggerServerEvent("NSPx_HoldUp:CarryCorpse", StatePlayer.CarryTarget)
-					while not HasAnimDictLoaded("dead@fall") do
-						RequestAnimDict("dead@fall")
-						Citizen.Wait(100)
-					end
-
-					ClearPedTasksImmediately(GetPlayerPed(targetPlayer))
-				end
+				startDeadCarryShortcut()
 			elseif data2.current.value == 'drag_alive_job' then
-				if StatePlayer.IsCarry then
-					dropCurrentCorpseCarry()
-					return
-				end
-
-				local targetPlayer = getNearestPlayerInArea(2.0, function(targetPed)
-					return not IsPedDeadOrDying(targetPed)
-				end)
-
-				if targetPlayer then
-					StatePlayer.IsCarry = true
-					StatePlayer.CarryType = "alive"
-					LoadAnimationDictionary("missfinale_c2mcs_1")
-					TaskPlayAnim(PlayerPedId(), "missfinale_c2mcs_1", "fin_c2_mcs_1_camman", 8.0, 8.0, -1, 49, 0,
-						false, false, false)
-					StatePlayer.LastAnim = "fin_c2_mcs_1_camman"
-					StatePlayer.LastDictAnim = "missfinale_c2mcs_1"
-
-					StatePlayer.CarryTarget = tonumber(GetPlayerServerId(targetPlayer))
-					TriggerServerEvent("NSPx_HoldUp:CarrySync", StatePlayer.CarryTarget)
-				end
+				startAliveCarryShortcut()
 			elseif data2.current.value == 'drag_job' then
 				local player, distance = ESX.Game.GetClosestPlayer()
 				playerlist = {}
@@ -408,6 +434,49 @@ RegisterCommand('apex_carry_menu', function()
 end, false)
 
 RegisterKeyMapping('apex_carry_menu', 'APEX Carry Menu', 'keyboard', 'F9')
+
+local function registerCarryShortcut(modeConfig, action)
+	if not modeConfig or not modeConfig.enabled then
+		return
+	end
+
+	local commandName = modeConfig.command
+	if not commandName or commandName == '' then
+		return
+	end
+
+	RegisterCommand(commandName, function()
+		if not Cfg.Shortcut or not Cfg.Shortcut.Enabled then
+			return
+		end
+
+		if ESX.UI.Menu.IsOpen('default', GetCurrentResourceName(), 'action_menu') then
+			return
+		end
+
+		if not IsPedOnFoot(PlayerPedId()) then
+			return
+		end
+
+		action()
+	end, false)
+
+	RegisterKeyMapping(commandName, modeConfig.label or commandName, 'keyboard', modeConfig.defaultKey or 'UNASSIGNED')
+end
+
+CreateThread(function()
+	while not ESX or not ESX.PlayerData or not ESX.PlayerData.job do
+		Wait(200)
+	end
+
+	if not Cfg.Shortcut or not Cfg.Shortcut.Enabled or not Cfg.Shortcut.Modes then
+		return
+	end
+
+	registerCarryShortcut(Cfg.Shortcut.Modes.CarryDead, startDeadCarryShortcut)
+	registerCarryShortcut(Cfg.Shortcut.Modes.CarryAlive, startAliveCarryShortcut)
+	registerCarryShortcut(Cfg.Shortcut.Modes.CarryEmote, CarryEmote)
+end)
 
 RegisterNetEvent("NSPx_HoldUp:ClearCarry")
 AddEventHandler("NSPx_HoldUp:ClearCarry", function(TargetCarry)
