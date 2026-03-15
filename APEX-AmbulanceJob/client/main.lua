@@ -819,27 +819,50 @@ AddEventHandler('esx:onPlayerDeath', function(data)
 end)
 
 function stabilizeBody()
+    local syncCfg = Config.DeathBodySync or {}
+    if not syncCfg.enabled then
+        return
+    end
+
     local ped = PlayerPedId()
+    if not DoesEntityExist(ped) then
+        return
+    end
+
     ClearPedTasksImmediately(ped)
 
     local coords = GetEntityCoords(ped)
     local found, coordsZ = GetGroundZFor_3dCoord(coords.x, coords.y, coords.z)
     if found then
-        SetEntityCoords(ped, coords.x, coords.y, coordsZ + 1)
+        local targetZ = coordsZ + 0.15
+        SetEntityCoordsNoOffset(ped, coords.x, coords.y, targetZ, true, true, true)
     end
 end
 
 function startBodyStabilizationSequence()
-    SetTimeout(3500, function()
+    local syncCfg = Config.DeathBodySync or {}
+
+    -- ปิดระบบนี้ค่าเริ่มต้นเพื่อเลี่ยงตำแหน่งศพไม่ตรงระหว่าง client
+    if not syncCfg.enabled then
+        ClearBody = true
+        clearBodyUi(false)
+        return
+    end
+
+    local firstDelay = tonumber(syncCfg.firstDelayMs) or 3500
+    local secondDelay = tonumber(syncCfg.secondDelayMs) or 7000
+    local finalDelay = tonumber(syncCfg.finalDelayMs) or 4000
+
+    SetTimeout(firstDelay, function()
         if IsDead then
             local playerPed = PlayerPedId()
             if IsEntityDead(playerPed) then
                 stabilizeBody()
             end
-            SetTimeout(7000, function()
+            SetTimeout(secondDelay, function()
                 if IsEntityDead(playerPed) and IsDead then
                     stabilizeBody()
-                    SetTimeout(4000, function()
+                    SetTimeout(finalDelay, function()
                         ClearBody = true
                         clearBodyUi(false)
                     end)
