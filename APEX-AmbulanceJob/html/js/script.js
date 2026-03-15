@@ -1,13 +1,21 @@
 $(function () {
+    let hideDeadScreenTimer = null
+
     function display(bool) {
         const deadScreen = $('.display_dead_screen');
+
+        if (hideDeadScreenTimer) {
+            clearTimeout(hideDeadScreenTimer);
+            hideDeadScreenTimer = null;
+        }
 
         if (bool) {
             deadScreen.stop(true, true).css('display', 'block').removeClass('fade-out').addClass('fade-in');
         } else {
             deadScreen.removeClass('spawn_time fade-in').addClass('fade-out');
-            setTimeout(function() {
+            hideDeadScreenTimer = setTimeout(function() {
                 deadScreen.css('display', 'none').removeClass('fade-out');
+                hideDeadScreenTimer = null;
             }, 220);
         }
     }

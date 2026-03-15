@@ -1126,7 +1126,7 @@ function clearBodyVoice()
             Citizen.Wait(5)
 
             -- ปุ่ม X
-            if IsControlJustReleased(0, select(2, getDeathKey('clearBody', 'X'))) and ClearBody and not isClearingBody then
+            if IsDisabledControlPressed(0, select(2, getDeathKey('clearBody', 'X'))) and ClearBody and not isClearingBody then
                 isClearingBody = true
                 ClearBody = false
                 clearBodyUi(true)
@@ -1143,7 +1143,7 @@ function clearBodyVoice()
             end
 
             -- ปุ่ม R
-            if IsControlJustReleased(0, select(2, getDeathKey('requestTalk', 'R'))) and not talk and not isRequestingTalk then
+            if IsDisabledControlPressed(0, select(2, getDeathKey('requestTalk', 'R'))) and not talk and not isRequestingTalk then
                 local now = GetGameTimer()
                 if now - lastLogicCheck >= 1000 then
                     local player, distance = ESX.Game.GetClosestPlayer()
@@ -1296,7 +1296,7 @@ function startDistressSignal()
     Citizen.CreateThread(function()
         while IsDead do
             Citizen.Wait(5)
-            if IsControlJustReleased(0, select(2, getDeathKey('distress', 'M'))) then
+            if IsDisabledControlPressed(0, select(2, getDeathKey('distress', 'M'))) then
                 local now = GetGameTimer()
                 if now < nextAllowedTime then
                     local remainSec = math.ceil((nextAllowedTime - now) / 1000)
@@ -1346,7 +1346,7 @@ function startDistressSignalGang()
     Citizen.CreateThread(function()
         while IsDead do
             Citizen.Wait(5)
-            if IsControlJustReleased(0, select(2, getDeathKey('gang', 'Q'))) then
+            if IsDisabledControlPressed(0, select(2, getDeathKey('gang', 'Q'))) then
                 local now = GetGameTimer()
                 if now < nextAllowedTime then
                     local remainSec = math.ceil((nextAllowedTime - now) / 1000)
