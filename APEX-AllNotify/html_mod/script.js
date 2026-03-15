@@ -50,7 +50,7 @@ $(function () {
             //     $("#loadid_"+item.notify.id+"").css({"width": "0%", "transition": ""+item.notify.time+"ms"});
 
             //     setTimeout(function() {
-                    
+
             //         $("#"+item.notify.id+"").css({"transform": "translateX(120%)","opacity": "0%"});
             //         setTimeout(function() {
             //             $("#"+item.notify.id+"").remove();
@@ -85,7 +85,7 @@ $(function () {
                     `);
                 }
             }
-            
+
             $("#"+item.notify.id+"").show();
 
             notiid = notiid + 1
@@ -124,7 +124,7 @@ $(function () {
                     // wpbtn = `<span>SHIFT</span><span>${item.data.wp_key}</span><br>`
                 // }
                 // $(".alertlist").append(`
-                //     <div class="alert" id="${item.data.index}">
+                //     <div class="alert alert-enter" id="${item.data.index}">
                 //     <div class="icon"><img src="img/${item.data.icon}.png"></div>
                 //         <div class="text">${item.data.text} <img src="img/location.png">${item.data.zone}${wpbtn} <div class="timebar" id="bar${item.data.index}"></div> </div>
                 //     </div>
@@ -146,7 +146,7 @@ $(function () {
                 // </div>
                 // `);
                 $(".alertlist").append(`
-                    <div class="alert" id="${item.data.index}">
+                    <div class="alert alert-enter" id="${item.data.index}">
                         <div class="icon">
                             <span>${item.data.wp_key}</span>
                         </div>
@@ -167,11 +167,14 @@ $(function () {
                         "transform": "translateX(0%)",
                         "opacity": "100%",
                     });
+                    setTimeout(function() {
+                        $("#"+item.data.index+"").removeClass('alert-enter');
+                    }, 420);
                     alert.play();
                     $( "#bar"+item.data.index+"" ).animate({
                         width: "0%",
                     }, item.data.time*1000, function() {
-                    
+
                     });
                 }, 100);
             }

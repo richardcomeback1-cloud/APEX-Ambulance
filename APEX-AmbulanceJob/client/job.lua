@@ -1158,10 +1158,26 @@ AddEventHandler('esx_ambulancejob:heal', function(healType, quiet)
 end)
 
 function _CHKHASITEM(Item)
-	_INVENTORY_ITEM = ESX.GetPlayerData().inventory
-	for key, value in pairs(_INVENTORY_ITEM) do
-		if value.name == Item then
-			return value.count
+	if not Item or Item == '' then
+		return 0
+	end
+
+	local itemName = string.lower(tostring(Item))
+
+	if ESX.SearchInventory then
+		local ok, result = pcall(function()
+			return ESX.SearchInventory(itemName, true)
+		end)
+		if ok and result ~= nil then
+			return tonumber(result) or 0
+		end
+	end
+
+	local inventory = ESX.GetPlayerData() and ESX.GetPlayerData().inventory or {}
+	for _, value in pairs(inventory) do
+		local invName = value and value.name and string.lower(tostring(value.name)) or nil
+		if invName == itemName then
+			return tonumber(value.count) or 0
 		end
 	end
 	return 0

@@ -493,13 +493,13 @@ span {
         zoom: 0.98;
     }
 }
-  
+
 @media (min-width: 1920px) {
     body {
       zoom: 1;
     }
 }
-  
+
 @media (min-width: 2048px) {
     body {
       zoom: 1.41;
@@ -516,3 +516,34 @@ span {
 /* /////////////////////////////////////////////////////////////////////////// */
 /* /////////////////////////////////////////////////////////////////////////// */
 /* /////////////////////////////////////////////////////////////////////////// */
+
+.alert.alert-enter {
+    animation: alertPopIn 0.38s ease-out;
+}
+
+@keyframes alertPopIn {
+    0% {
+        opacity: 0;
+        transform: translateX(110%) scale(0.98);
+        filter: blur(1px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateX(0%) scale(1);
+        filter: blur(0);
+    }
+}
+
+.alert {
+    box-shadow: 0 8px 20px rgba(26, 35, 84, 0.35);
+    backdrop-filter: blur(1px);
+}
+
+.icon {
+    box-shadow: inset 0 0 12px rgba(141, 160, 255, 0.15);
+}
+
+.timebar {
+    background: linear-gradient(90deg, rgba(153, 174, 255, 1), rgba(215, 226, 255, 1));
+    box-shadow: 0 0 8px rgba(170, 188, 255, 0.55);
+}

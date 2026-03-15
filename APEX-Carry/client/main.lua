@@ -504,6 +504,16 @@ AddEventHandler("NSPx_HoldUp:ClearCarryEmote", function()
 end)
 
 AddEventHandler('playerSpawned', function()
+	if StatePlayer.IsCarry then
+		TriggerServerEvent("NSPx_HoldUp:DropCorpse", StatePlayer.CarryTarget)
+		if StatePlayer.LastDictAnim and StatePlayer.LastAnim then
+			StopAnimTask(PlayerPedId(), StatePlayer.LastDictAnim, StatePlayer.LastAnim, 3.0)
+		end
+		StatePlayer.IsCarry = false
+		StatePlayer.CarryTarget = 0
+		PlayerListId = {}
+	end
+
 	if StatePlayer.BeCarry then
 		TriggerServerEvent("NSPx_HoldUp:ClearCarry", StatePlayer.TargetCarry)
 		StatePlayer.BeCarry = false

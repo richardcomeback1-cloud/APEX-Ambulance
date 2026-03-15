@@ -856,6 +856,24 @@ local function syncDeadLastPosition()
     TriggerServerEvent('esx:updateLastPosition', formattedCoords)
 end
 
+local function playClearBodyBounce()
+    local ped = PlayerPedId()
+    if not DoesEntityExist(ped) then
+        return
+    end
+
+    local coords = GetEntityCoords(ped)
+    local heading = GetEntityHeading(ped)
+
+    -- เด้งศพ: ลุกขึ้นสั้น ๆ แล้วกลับไปสถานะตายเดิม เพื่อรีเซ็ตตำแหน่งให้ตรงกัน
+    NetworkResurrectLocalPlayer(coords.x, coords.y, coords.z, heading, true, false)
+    SetEntityHealth(ped, 1)
+    Citizen.Wait(50)
+    SetEntityHealth(ped, 0)
+    SetPedToRagdoll(ped, 1200, 1200, 0, false, false, false)
+    syncDeadLastPosition()
+end
+
 function startBodyStabilizationSequence()
     local syncCfg = Config.DeathBodySync or {}
 
@@ -1171,7 +1189,7 @@ function clearBodyVoice()
                 ClearBody = false
                 clearBodyUi(true)
                 stabilizeBody()
-                syncDeadLastPosition()
+                playClearBodyBounce()
 
                 local clearBodyCooldownMs = getDeathKeyCooldownMs('clearBody', 30)
                 SetTimeout(clearBodyCooldownMs, function()

@@ -507,6 +507,15 @@ function ScriptWork()
 	RegisterNUICallback('RemoveAll', function(data)
 		if not Waiting then
 			Waiting = true
+
+			-- ลบเคสปลอดภัยในหน้าเราออกทันทีให้ UI อัปเดตตรงตามที่กด
+			for i = #AlertData, 1, -1 do
+				if tonumber(AlertData[i].status) == 3 then
+					table.remove(AlertData, i)
+				end
+			end
+			RefreshTabletUI()
+
 			TriggerServerEvent(scriptName..':UpdateCase',-1, "deleteall")
 			Citizen.Wait(1000)
 			Waiting = false
