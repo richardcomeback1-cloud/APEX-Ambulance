@@ -1,19 +1,73 @@
-local function getPlayer(player)
-	if ESX.Player then
-		return ESX.Player(player)
-	end
+local playerSourceByIdentifier = {}
 
-	if type(player) == 'number' and ESX.GetPlayerFromId then
-		return ESX.GetPlayerFromId(player)
-	end
+local function setPlayerIdentifierCache(xPlayer)
+	if not xPlayer then return end
 
-	if type(player) == 'string' and ESX.GetPlayerFromIdentifier then
-		return ESX.GetPlayerFromIdentifier(player)
+	local identifier = xPlayer.getIdentifier and xPlayer.getIdentifier()
+	local playerId = xPlayer.source or xPlayer.playerId or xPlayer.src
+
+	if identifier and playerId then
+		playerSourceByIdentifier[identifier] = playerId
 	end
 end
 
+local function clearPlayerIdentifierCache(playerId)
+	for identifier, cachedPlayerId in pairs(playerSourceByIdentifier) do
+		if cachedPlayerId == playerId then
+			playerSourceByIdentifier[identifier] = nil
+			return
+		end
+	end
+end
+
+local function getPlayerById(playerId)
+	if not playerId then return end
+
+	if ESX.Player then
+		return ESX.Player(playerId)
+	end
+
+	if ESX.GetPlayerFromId then
+		return ESX.GetPlayerFromId(playerId)
+	end
+end
+
+local function getPlayerByIdentifier(identifier)
+	if not identifier then return end
+
+	if ESX.GetPlayerFromIdentifier then
+		return ESX.GetPlayerFromIdentifier(identifier)
+	end
+
+	local cachedPlayerId = playerSourceByIdentifier[identifier]
+	if cachedPlayerId then
+		local cachedPlayer = getPlayerById(cachedPlayerId)
+		if cachedPlayer then
+			return cachedPlayer
+		end
+
+		playerSourceByIdentifier[identifier] = nil
+	end
+
+	if ESX.GetExtendedPlayers then
+		for _, xPlayer in pairs(ESX.GetExtendedPlayers()) do
+			if xPlayer.getIdentifier and xPlayer.getIdentifier() == identifier then
+				setPlayerIdentifierCache(xPlayer)
+				return xPlayer
+			end
+		end
+	end
+end
+
+AddEventHandler('esx:playerLoaded', function(playerId, xPlayer)
+	setPlayerIdentifierCache(xPlayer or getPlayerById(playerId))
+end)
+
+AddEventHandler('playerDropped', function()
+	clearPlayerIdentifierCache(source)
+end)
+
 local function billPlayerByIdentifier(targetIdentifier, senderIdentifier, sharedAccountName, label, amount)
-	local xTarget = getPlayer(targetIdentifier)
 	amount = ESX.Math.Round(amount)
 
 	if amount <= 0 then return end
@@ -29,6 +83,7 @@ local function billPlayerByIdentifier(targetIdentifier, senderIdentifier, shared
 				'INSERT INTO billing (identifier, sender, target_type, target, label, amount) VALUES (?, ?, ?, ?, ?, ?)',
 				{ targetIdentifier, senderIdentifier, 'society', sharedAccountName, label, amount })
 
+			local xTarget = getPlayerByIdentifier(targetIdentifier)
 			if not xTarget then return end
 
 			xTarget.showNotification(TranslateCap('received_invoice'))
@@ -39,13 +94,14 @@ local function billPlayerByIdentifier(targetIdentifier, senderIdentifier, shared
 		'INSERT INTO billing (identifier, sender, target_type, target, label, amount) VALUES (?, ?, ?, ?, ?, ?)',
 		{ targetIdentifier, senderIdentifier, 'player', senderIdentifier, label, amount })
 
+	local xTarget = getPlayerByIdentifier(targetIdentifier)
 	if not xTarget then return end
 
 	xTarget.showNotification(TranslateCap('received_invoice'))
 end
 
 local function billPlayer(targetId, senderIdentifier, sharedAccountName, label, amount)
-	local xTarget = getPlayer(targetId)
+	local xTarget = getPlayerById(targetId)
 
 	if not xTarget then return end
 
@@ -53,7 +109,7 @@ local function billPlayer(targetId, senderIdentifier, sharedAccountName, label, 
 end
 
 RegisterNetEvent('esx_billing:sendBill', function(targetId, sharedAccountName, label, amount)
-	local xPlayer = getPlayer(source)
+	local xPlayer = getPlayerById(source)
 
 	if not xPlayer then return end
 
@@ -69,7 +125,7 @@ end)
 exports("BillPlayer", billPlayer)
 
 RegisterNetEvent('esx_billing:sendBillToIdentifier', function(targetIdentifier, sharedAccountName, label, amount)
-	local xPlayer = getPlayer(source)
+	local xPlayer = getPlayerById(source)
 
 	if not xPlayer then return end
 
@@ -85,7 +141,7 @@ end)
 exports("BillPlayerByIdentifier", billPlayerByIdentifier)
 
 ESX.RegisterServerCallback('esx_billing:getBills', function(source, cb)
-	local xPlayer = getPlayer(source)
+	local xPlayer = getPlayerById(source)
 
 	if not xPlayer then return cb({}) end
 
@@ -94,7 +150,7 @@ ESX.RegisterServerCallback('esx_billing:getBills', function(source, cb)
 end)
 
 ESX.RegisterServerCallback('esx_billing:getTargetBills', function(source, cb, target)
-	local xPlayer = getPlayer(target)
+	local xPlayer = getPlayerById(target)
 
 	if not xPlayer then return cb({}) end
 
@@ -103,7 +159,7 @@ ESX.RegisterServerCallback('esx_billing:getTargetBills', function(source, cb, ta
 end)
 
 ESX.RegisterServerCallback('esx_billing:payBill', function(source, cb, billId)
-	local xPlayer = getPlayer(source)
+	local xPlayer = getPlayerById(source)
 
 	if not xPlayer then return cb() end
 
@@ -111,7 +167,7 @@ ESX.RegisterServerCallback('esx_billing:payBill', function(source, cb, billId)
 	if not result then return end
 
 	local amount = result.amount
-	local xTarget = getPlayer(result.sender)
+	local xTarget = getPlayerByIdentifier(result.sender)
 
 	if result.target_type == 'player' then
 		if not xTarget then
@@ -147,7 +203,9 @@ ESX.RegisterServerCallback('esx_billing:payBill', function(source, cb, billId)
 		if xPlayer.getMoney() < amount then
 			paymentAccount = 'bank'
 			if xPlayer.getAccount('bank').money < amount then
-				xTarget.showNotification(TranslateCap('target_no_money'))
+				if xTarget then
+					xTarget.showNotification(TranslateCap('target_no_money'))
+				end
 				xPlayer.showNotification(TranslateCap('no_money'))
 				return cb()
 			end
