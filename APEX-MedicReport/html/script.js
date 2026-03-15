@@ -48,7 +48,9 @@ $(function () {
 
                     const detailEl = $(`.case-owner-detail[data-caseid=\"${caseId}\"]`);
                     if (detailEl.length && caseData) {
-                        detailEl.html(`${caseData.caseid || "-"} | [${caseTimeData.remaintext || "00:00"}]`);
+                        const pressCount = Number(caseData.pressedCount || 1);
+                        const pressText = pressCount > 1 ? ` | X${pressCount}` : '';
+                        detailEl.html(`${caseData.caseid || "-"} | [${caseTimeData.remaintext || "00:00"}]${pressText}`);
                     }
                 });
             }
@@ -142,7 +144,9 @@ $(function () {
             if (showidcase) {
                 let text = v.text || ""
                 if (v.status == 1) {
-                    text = '<span style="color:#ff686880;">ต้องการความช่วยเหลือ</span>'
+                    const pressCount = Number(v.pressedCount || 1)
+                    const pressText = pressCount > 1 ? ` X${pressCount}` : ''
+                    text = `<span style="color:#ff686880;">${v.text || "ต้องการความช่วยเหลือ"}${pressText}</span>`
                 }
                 if (v.status == 2) {
                     text = '<span style="color:#ffbc00b8;">'+(v.text || "กำลังไป")+'</span>'
@@ -151,16 +155,25 @@ $(function () {
                     text = '<span style="color:#00b2ff;">ปลอดภัยแล้ว</span>'
                 }
 
+                let statusIconClass = 'is-waiting'
+                if (v.status == 2) {
+                    statusIconClass = 'is-going'
+                } else if (v.status == 3) {
+                    statusIconClass = 'is-safe'
+                }
+
                 let caseOwner = v.name || "ไม่ทราบชื่อ"
                 let caseRemain = v.remaintext || "00:00"
-                let caseOwnerDetail = `${v.caseid || "-"} | [${caseRemain}]`
+                let pressCount = Number(v.pressedCount || 1)
+                let pressText = pressCount > 1 ? ` | X${pressCount}` : ''
+                let caseOwnerDetail = `${v.caseid || "-"} | [${caseRemain}]${pressText}`
 
                 $(".caselist").append(`
                     <div class="casevalue status-${v.status}" data-caseid="${v.caseid}">
                         <div class="caseid">${v.caseorder || v.caseid}</div>
                         <div class="casetime" data-caseid="${v.caseid}">${v.casetime || "-"}</div>
                         <div class="phonenumber"><div class="case-owner">${caseOwner}</div><div class="case-owner-detail" data-caseid="${v.caseid}">${caseOwnerDetail}</div></div>
-                        <div class="status">${text}</div>
+                        <div class="status"><span class="status-icon ${statusIconClass}"></span>${text}</div>
                         <div><img src="img/getbtn.png" class="getbtn casebtn" data-caseid="${v.caseid}"></div>
                         <div><img src="img/gpsbtn.png" class="gpsbtn casebtn" data-caseid="${v.caseid}"></div>
                         <div><img src="img/deletebtn.png" class="deletebtn casebtn" data-caseid="${v.caseid}" data-status="${v.status}" style="${v.status == 3 ? "" : "opacity:0.35;"}"></div>
@@ -383,49 +396,49 @@ $(function () {
     //     ClickSound.play();
     // })
 
-    const button = document.querySelector('.removeall'); // ใช้คลาส btn_maincraft
+    const button = document.querySelector('.removeall');
 
-    let holdTimeout; // ตัวจับเวลาแบบครบกำหนด
-    let progressInterval; // ตัวจับเวลาสำหรับ progress
-    let elapsedTime = 0; // เวลาที่ผ่านไปในหน่วย ms
-    let isHolding = false; // ตัวแปรตรวจสอบสถานะการกดค้าง
+    let holdTimeout;
+    let progressInterval;
+    let elapsedTime = 0;
+    let isHolding = false;
+    const holdDurationMs = 5000;
 
-    button.addEventListener('mousedown', () => {
-        if (isHolding) return; // ป้องกันการเรียกซ้ำ
-        isHolding = true;
-        elapsedTime = 0; // รีเซ็ตเวลา
-
-        // เริ่มจับเวลาสำหรับ progress
-        progressInterval = setInterval(() => {
-            elapsedTime += 100; // เพิ่มเวลาในหน่วย ms
-            const progress = Math.min((elapsedTime / 5000) * 100, 100);
-            $(".loadremoveall").css({ "width": `${progress.toFixed(2)}%` });
-        }, 100); // อัพเดตทุก 100ms
-
-        // เริ่มจับเวลาเมื่อกดปุ่ม
-        holdTimeout = setTimeout(() => {
-            if (!isHolding) return; // ตรวจสอบอีกครั้งหากสถานะไม่ใช่การกดค้าง
-            ClickSound.pause();
-            $(".loadremoveall").css({ "width": "0%" });
-            clearInterval(progressInterval); // หยุดอัพเดต progress
-
-            $.post('https://APEX-MedicReport/RemoveAll', JSON.stringify({}));
-            ClickSound.play();
-
-            isHolding = false; // รีเซ็ตสถานะ
-        }, 5000);
-    });
-
-    const stopHolding = () => {
-        if (!isHolding) return; // ถ้าไม่ได้กดค้างก็ไม่ต้องทำอะไร
-        clearTimeout(holdTimeout); // ยกเลิกตัวจับเวลาหลัก
-        clearInterval(progressInterval); // ยกเลิกการอัพเดต progress
+    const resetRemoveAllProgress = () => {
+        clearTimeout(holdTimeout);
+        clearInterval(progressInterval);
         ClickSound.pause();
         $(".loadremoveall").css({ "width": "0%" });
-        isHolding = false; // รีเซ็ตสถานะ
+        isHolding = false;
     };
 
-    button.addEventListener('mouseup', stopHolding);
-    button.addEventListener('mouseleave', stopHolding);
+    if (button) {
+        button.addEventListener('mousedown', () => {
+            if (isHolding) return;
+            isHolding = true;
+            elapsedTime = 0;
+
+            progressInterval = setInterval(() => {
+                elapsedTime += 100;
+                const progress = Math.min((elapsedTime / holdDurationMs) * 100, 100);
+                $(".loadremoveall").css({ "width": `${progress.toFixed(2)}%` });
+            }, 100);
+
+            holdTimeout = setTimeout(() => {
+                if (!isHolding) return;
+                $.post('https://APEX-MedicReport/RemoveAll', JSON.stringify({}));
+                ClickSound.play();
+                resetRemoveAllProgress();
+            }, holdDurationMs);
+        });
+
+        const stopHolding = () => {
+            if (!isHolding) return;
+            resetRemoveAllProgress();
+        };
+
+        button.addEventListener('mouseup', stopHolding);
+        button.addEventListener('mouseleave', stopHolding);
+    }
 
 })

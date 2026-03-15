@@ -21,6 +21,7 @@ local bodywarp = false
 local ClearBody = false
 local AmbulanceBlipTargets = {}
 local clearAmbulancePlayerBlips = function() end
+local setDeathRemainState = function(_) end
 
 Citizen.CreateThread(function()
 	while ESX == nil do
@@ -68,6 +69,7 @@ AddEventHandler('esx:onPlayerSpawn', function()
 	IsDead = false
 	bodywarp = false
 	ClearBody = false
+	setDeathRemainState(nil)
 	closeUi()
 	if FirstSpawn then
         exports.spawnmanager:setAutoSpawn(false) -- ปิด auto respawn
@@ -106,6 +108,15 @@ local ZONE_DETECTION = Config.ZoneDetection
 
 -- Cache สำหรับประสิทธิภาพ
 local ZONE_PRIORITY = {"training", "airdrop", "stelshop", "replight", "waterpipe", "megacement"}
+
+setDeathRemainState = function(seconds)
+    local sec = tonumber(seconds)
+    if sec and sec >= 0 then
+        LocalPlayer.state:set('ambulanceRespawnRemain', math.ceil(sec), true)
+    else
+        LocalPlayer.state:set('ambulanceRespawnRemain', nil, true)
+    end
+end
 
 local function getDeathKey(name, fallback)
     local configured = (Config.DeathKeybinds and Config.DeathKeybinds[name]) or fallback
@@ -273,7 +284,7 @@ function startWarzoneTimer()
                 Citizen.CreateThread(function()
                     while IsDead and not isPress do
                         Citizen.Wait(5)
-                        if IsDisabledControlJustReleased(0, select(2, getDeathKey('respawn', 'G'))) then
+                        if IsDisabledControlPressed(0, select(2, getDeathKey('respawn', 'G'))) then
                             isPress = true
                             TriggerEvent('esx_ambulancejob:reviveinwarzone')
                             Citizen.Wait(1000)
@@ -304,7 +315,7 @@ function startAirdropSpecialButton()
             end
 
             Citizen.Wait(5)
-            if IsControlJustReleased(0, select(2, getDeathKey('respawn', 'G'))) and not isPress then
+            if IsDisabledControlPressed(0, select(2, getDeathKey('respawn', 'G'))) and not isPress then
                 isPress = true
 
                 -- เรียก exit function
@@ -346,7 +357,7 @@ function startStelshopSpecialButton()
             end
 
             Citizen.Wait(5)
-            if IsControlJustReleased(0, select(2, getDeathKey('respawn', 'G'))) and not isPress then
+            if IsDisabledControlPressed(0, select(2, getDeathKey('respawn', 'G'))) and not isPress then
                 local playerPed = PlayerPedId()
                 local cashMoney = ESX.GetAccountMoney("money")
                 local bankMoney = ESX.GetAccountMoney("bank")
@@ -416,7 +427,7 @@ function startReplightSpecialButton(replightIndex)
             end
 
             Citizen.Wait(5)
-            if IsControlJustReleased(0, select(2, getDeathKey('respawn', 'G'))) and not isPress then
+            if IsDisabledControlPressed(0, select(2, getDeathKey('respawn', 'G'))) and not isPress then
                 local playerPed = PlayerPedId()
                 
                 -- ตรวจสอบว่ามีหมอออนไลน์หรือไม่
@@ -541,7 +552,7 @@ function startWaterpipeSpecialButton(waterpipeIndex)
             end
 
             Citizen.Wait(5)
-            if IsControlJustReleased(0, select(2, getDeathKey('respawn', 'G'))) and not isPress then
+            if IsDisabledControlPressed(0, select(2, getDeathKey('respawn', 'G'))) and not isPress then
                 local playerPed = PlayerPedId()
                 
                 -- ตรวจสอบว่ามีหมอออนไลน์หรือไม่
@@ -666,7 +677,7 @@ function startMegacementSpecialButton(megacementIndex)
             end
 
             Citizen.Wait(5)
-            if IsControlJustReleased(0, select(2, getDeathKey('respawn', 'G'))) and not isPress then
+            if IsDisabledControlPressed(0, select(2, getDeathKey('respawn', 'G'))) and not isPress then
                 local playerPed = PlayerPedId()
                 
                 -- ตรวจสอบว่ามีหมอออนไลน์หรือไม่
@@ -819,27 +830,85 @@ AddEventHandler('esx:onPlayerDeath', function(data)
 end)
 
 function stabilizeBody()
+    local syncCfg = Config.DeathBodySync or {}
+    if not syncCfg.enabled then
+        return
+    end
+
     local ped = PlayerPedId()
+    if not DoesEntityExist(ped) then
+        return
+    end
+
     ClearPedTasksImmediately(ped)
 
     local coords = GetEntityCoords(ped)
     local found, coordsZ = GetGroundZFor_3dCoord(coords.x, coords.y, coords.z)
     if found then
-        SetEntityCoords(ped, coords.x, coords.y, coordsZ + 1)
+        local targetZ = coordsZ + 0.15
+        SetEntityCoordsNoOffset(ped, coords.x, coords.y, targetZ, true, true, true)
     end
 end
 
+local function syncDeadLastPosition()
+    local ped = PlayerPedId()
+    if not ped or not DoesEntityExist(ped) then
+        return
+    end
+
+    local coords = GetEntityCoords(ped)
+    local formattedCoords = {
+        x = coords.x,
+        y = coords.y,
+        z = coords.z
+    }
+
+    ESX.SetPlayerData('lastPosition', formattedCoords)
+    TriggerServerEvent('esx:updateLastPosition', formattedCoords)
+end
+
+local function playClearBodyBounce()
+    local ped = PlayerPedId()
+    if not DoesEntityExist(ped) then
+        return
+    end
+
+    local coords = GetEntityCoords(ped)
+    local heading = GetEntityHeading(ped)
+
+    -- เด้งศพ: ลุกขึ้นสั้น ๆ แล้วกลับไปสถานะตายเดิม เพื่อรีเซ็ตตำแหน่งให้ตรงกัน
+    NetworkResurrectLocalPlayer(coords.x, coords.y, coords.z, heading, true, false)
+    SetEntityHealth(ped, 1)
+    Citizen.Wait(50)
+    SetEntityHealth(ped, 0)
+    SetPedToRagdoll(ped, 1200, 1200, 0, false, false, false)
+    syncDeadLastPosition()
+end
+
 function startBodyStabilizationSequence()
-    SetTimeout(3500, function()
+    local syncCfg = Config.DeathBodySync or {}
+
+    -- ปิดระบบนี้ค่าเริ่มต้นเพื่อเลี่ยงตำแหน่งศพไม่ตรงระหว่าง client
+    if not syncCfg.enabled then
+        ClearBody = true
+        clearBodyUi(false)
+        return
+    end
+
+    local firstDelay = tonumber(syncCfg.firstDelayMs) or 3500
+    local secondDelay = tonumber(syncCfg.secondDelayMs) or 7000
+    local finalDelay = tonumber(syncCfg.finalDelayMs) or 4000
+
+    SetTimeout(firstDelay, function()
         if IsDead then
             local playerPed = PlayerPedId()
             if IsEntityDead(playerPed) then
                 stabilizeBody()
             end
-            SetTimeout(7000, function()
+            SetTimeout(secondDelay, function()
                 if IsEntityDead(playerPed) and IsDead then
                     stabilizeBody()
-                    SetTimeout(4000, function()
+                    SetTimeout(finalDelay, function()
                         ClearBody = true
                         clearBodyUi(false)
                     end)
@@ -1086,6 +1155,13 @@ Citizen.CreateThread(function()
             else
                 DisableAllControlActions(0)
 
+                -- อนุญาตให้หมุนกล้องได้ตลอด แม้กด ESC เข้า/ออกเมนู
+                EnableControlAction(0, 1, true)
+                EnableControlAction(0, 2, true)
+                EnableControlAction(1, 1, true)
+                EnableControlAction(1, 2, true)
+                EnableControlAction(0, 322, true)
+
                 if IsInBlockZone() then
                     -- ถ้าอยู่ใน BlockZone
                     EnableControlAction(0, select(2, getDeathKey('clearBody', 'X')), true)
@@ -1119,11 +1195,14 @@ function clearBodyVoice()
             Citizen.Wait(5)
 
             -- ปุ่ม X
-            if IsControlJustReleased(0, select(2, getDeathKey('clearBody', 'X'))) and ClearBody and not isClearingBody then
+            if IsDisabledControlPressed(0, select(2, getDeathKey('clearBody', 'X'))) and ClearBody and not isClearingBody then
                 isClearingBody = true
                 ClearBody = false
                 clearBodyUi(true)
-                stabilizeBody()
+                local playerPed = PlayerPedId()
+                FreezeEntityPosition(playerPed, false)
+                ClearPedTasksImmediately(playerPed)
+                playClearBodyBounce()
 
                 local clearBodyCooldownMs = getDeathKeyCooldownMs('clearBody', 30)
                 SetTimeout(clearBodyCooldownMs, function()
@@ -1136,7 +1215,7 @@ function clearBodyVoice()
             end
 
             -- ปุ่ม R
-            if IsControlJustReleased(0, select(2, getDeathKey('requestTalk', 'R'))) and not talk and not isRequestingTalk then
+            if IsDisabledControlPressed(0, select(2, getDeathKey('requestTalk', 'R'))) and not talk and not isRequestingTalk then
                 local now = GetGameTimer()
                 if now - lastLogicCheck >= 1000 then
                     local player, distance = ESX.Game.GetClosestPlayer()
@@ -1289,7 +1368,7 @@ function startDistressSignal()
     Citizen.CreateThread(function()
         while IsDead do
             Citizen.Wait(5)
-            if IsControlJustReleased(0, select(2, getDeathKey('distress', 'M'))) then
+            if IsDisabledControlPressed(0, select(2, getDeathKey('distress', 'M'))) then
                 local now = GetGameTimer()
                 if now < nextAllowedTime then
                     local remainSec = math.ceil((nextAllowedTime - now) / 1000)
@@ -1339,7 +1418,7 @@ function startDistressSignalGang()
     Citizen.CreateThread(function()
         while IsDead do
             Citizen.Wait(5)
-            if IsControlJustReleased(0, select(2, getDeathKey('gang', 'Q'))) then
+            if IsDisabledControlPressed(0, select(2, getDeathKey('gang', 'Q'))) then
                 local now = GetGameTimer()
                 if now < nextAllowedTime then
                     local remainSec = math.ceil((nextAllowedTime - now) / 1000)
@@ -1433,6 +1512,7 @@ function startNoAmbulanceTimer()
         while IsDead and noAmbulanceTimer > 0 do
             Citizen.Wait(1000)
             noAmbulanceTimer = noAmbulanceTimer - 1
+            setDeathRemainState(noAmbulanceTimer)
             local percent = (noAmbulanceTimer / noAmbulanceTimerMax) * 100
             SendNUIMessage({
                 type = "progress",
@@ -1456,9 +1536,10 @@ function startNoAmbulanceTimer()
                 end
 
                 RespawnTime("00:00")
+                setDeathRemainState(0)
 
                 Citizen.Wait(5)
-                if IsControlJustReleased(0, select(2, getDeathKey('respawn', 'G'))) and not isPress then
+                if IsDisabledControlPressed(0, select(2, getDeathKey('respawn', 'G'))) and not isPress then
                     isPress = true
                     respawnAtConfiguredPoint()
                     break
@@ -1499,6 +1580,7 @@ function startDeathTimer(dynamicTimerMs)
             -- early respawn
             if earlySpawnTimer > 0 then
                 earlySpawnTimer = earlySpawnTimer - 0.25
+                setDeathRemainState(earlySpawnTimer)
                 local percent = (earlySpawnTimer / maxTimeSpawn) * 100
                 SendNUIMessage({
                     type = "progress",
@@ -1515,14 +1597,16 @@ function startDeathTimer(dynamicTimerMs)
 
                 if dynamicTimerEnabled then
                     RespawnTime("00:00")
+                    setDeathRemainState(bleedoutTimer)
 
-                    if IsControlJustReleased(0, select(2, getDeathKey('respawn', 'G'))) and not isPress then
+                    if IsDisabledControlPressed(0, select(2, getDeathKey('respawn', 'G'))) and not isPress then
                         isPress = true
                         RemoveItemsAfterRPDeath()
                         break
                     end
                 elseif bleedoutTimer > 0 then
                     bleedoutTimer = bleedoutTimer - 0.25
+                    setDeathRemainState(bleedoutTimer)
                     local percent = (bleedoutTimer / maxTimeBleedout) * 100
                     SendNUIMessage({
                         type = "progress",
@@ -1532,6 +1616,7 @@ function startDeathTimer(dynamicTimerMs)
                 else
                     -- bleedout หมดเวลา
                     RespawnTime("00:00")
+                    setDeathRemainState(0)
                     RemoveItemsAfterRPDeath()
                     break
                 end
@@ -1554,6 +1639,7 @@ end
 
 function RemoveItemsAfterRPDeath()
     TriggerServerEvent('esx_ambulancejob:setDeathStatus', false)
+    setDeathRemainState(nil)
 
     Citizen.CreateThread(function()
         if bodywarp then
@@ -1626,6 +1712,7 @@ AddEventHandler('esx_ambulancejob:reviveinwarzone', function()
     local playerPed = PlayerPedId()
 
 	TriggerServerEvent('esx_ambulancejob:setDeathStatus', false)
+	setDeathRemainState(nil)
 
 	Citizen.CreateThread(function()
         DoScreenFadeOut(800)
@@ -1648,6 +1735,7 @@ AddEventHandler('esx_ambulancejob:revive', function()
     local playerPed = PlayerPedId()
 
 	TriggerServerEvent('esx_ambulancejob:setDeathStatus', false)
+	setDeathRemainState(nil)
 
 	Citizen.CreateThread(function()
         DoScreenFadeOut(800)
@@ -1671,6 +1759,7 @@ AddEventHandler('esx_ambulancejob:reviveall', function()
 	local playerPed = PlayerPedId()
  	if IsDead  then
 		TriggerServerEvent('esx_ambulancejob:setDeathStatus', false)
+		setDeathRemainState(nil)
 
 		Citizen.CreateThread(function()
 			DoScreenFadeOut(800)

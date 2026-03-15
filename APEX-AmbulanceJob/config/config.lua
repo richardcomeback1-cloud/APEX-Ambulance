@@ -12,6 +12,12 @@ Config.LoadIpl 					  = true	-- โหลด IPL ของโรงพยาบ�
 
 Config.Locale = 'th'
 Config.DeathUIDelay               = 2 * second -- ดีเลย์ก่อนแสดง UI เมื่อตาย
+Config.DeathBodySync = {
+    enabled = false,      -- ปิดเป็นค่าเริ่มต้น เพื่อลดปัญหาศพไม่ตรงตำแหน่งระหว่างผู้เล่น
+    firstDelayMs = 3500,
+    secondDelayMs = 7000,
+    finalDelayMs = 4000
+}
 Config.DistressSignalCooldownSec   = 180 -- คูลดาวน์ปุ่มส่งเคสตอนตาย (วินาที, ปรับได้)
 Config.DeathKeyCooldownSec = {
     distress = 180,  -- คูลดาวน์ปุ่มส่งเคสหาหมอ

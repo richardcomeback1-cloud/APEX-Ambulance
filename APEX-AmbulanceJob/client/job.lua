@@ -66,6 +66,50 @@ local function sendMedicBill(targetPlayer, amount, billName)
 	end
 end
 
+local function getMedicActionItem(actionType)
+	local required = Config and Config.RequiredMedicItems and Config.RequiredMedicItems[actionType] or nil
+	if not required or not required.name or required.name == '' then
+		return nil, nil
+	end
+
+	local itemName = tostring(required.name)
+	local itemLabel = (required.label and tostring(required.label)) or itemName
+	return itemName, itemLabel
+end
+
+local function canUseMedicActionItem(actionType)
+	local itemName, itemLabel = getMedicActionItem(actionType)
+	if not itemName then
+		exports['pNotify']:SendNotification({ text = ('Missing Config.RequiredMedicItems.%s.name'):format(tostring(actionType)), type = 'error', timeout = 4000 })
+		return false, nil
+	end
+
+	if _CHKHASITEM(itemName) <= 0 then
+		exports['pNotify']:SendNotification({ text = ('You do not have %s.'):format(itemLabel), type = 'error', timeout = 3000 })
+		return false, itemName
+	end
+	return true, itemName
+end
+
+local function withMedicActionItem(actionType, onSuccess)
+	local itemName, itemLabel = getMedicActionItem(actionType)
+	if not itemName then
+		exports['pNotify']:SendNotification({ text = ('Missing Config.RequiredMedicItems.%s.name'):format(tostring(actionType)), type = 'error', timeout = 4000 })
+		return
+	end
+
+	ESX.TriggerServerCallback('esx_ambulancejob:hasItem', function(hasItem)
+		if not hasItem then
+			exports['pNotify']:SendNotification({ text = ('You do not have %s.'):format(itemLabel), type = 'error', timeout = 3000 })
+			return
+		end
+
+		if onSuccess then
+			onSuccess(itemName)
+		end
+	end, itemName, 1)
+end
+
 
 local function getBillingMenuConfig()
 	local defaults = {
@@ -167,92 +211,80 @@ local function runHealAnimation(callback)
 end
 
 local function doSingleRevive(targetPlayer, billAmount)
-	if _CHKHASITEM('ag_medikit') <= 0 then
-		exports['pNotify']:SendNotification({ text = 'You do not have medikit.', type = 'error', timeout = 3000 })
-		return
-	end
+	withMedicActionItem('revive', function(reviveItem)
+		local targetPed = GetPlayerPed(targetPlayer)
+		if not IsPedDeadOrDying(targetPed, 1) then return end
 
-	local targetPed = GetPlayerPed(targetPlayer)
-	if not IsPedDeadOrDying(targetPed, 1) then return end
-
-	runReviveAnimation(function()
-		TriggerServerEvent('esx_ambulancejob:removeItem', 'ag_medikit')
-		TriggerServerEvent('esx_ambulancejob:revive', GetPlayerServerId(targetPlayer))
-		sendMedicBill(targetPlayer, billAmount, "Fine: Revive")
+		runReviveAnimation(function()
+			TriggerServerEvent('esx_ambulancejob:removeItem', reviveItem)
+			TriggerServerEvent('esx_ambulancejob:revive', GetPlayerServerId(targetPlayer))
+			sendMedicBill(targetPlayer, billAmount, "Fine: Revive")
+		end)
 	end)
 end
 
 local function doMassRevive(radius, billAmount)
-	if _CHKHASITEM('ag_medikit') <= 0 then
-		exports['pNotify']:SendNotification({ text = 'You do not have medikit.', type = 'error', timeout = 3000 })
-		return
-	end
-
-	local nearbyPlayers = ESX.Game.GetPlayersInArea(GetEntityCoords(PlayerPedId()), radius or 5.0)
-	local deadTargets = {}
-	for _, playerId in ipairs(nearbyPlayers) do
-		if playerId ~= PlayerId() then
-			local ped = GetPlayerPed(playerId)
-			if IsPedDeadOrDying(ped, 1) then table.insert(deadTargets, playerId) end
+	withMedicActionItem('revive', function(reviveItem)
+		local nearbyPlayers = ESX.Game.GetPlayersInArea(GetEntityCoords(PlayerPedId()), radius or 5.0)
+		local deadTargets = {}
+		for _, playerId in ipairs(nearbyPlayers) do
+			if playerId ~= PlayerId() then
+				local ped = GetPlayerPed(playerId)
+				if IsPedDeadOrDying(ped, 1) then table.insert(deadTargets, playerId) end
+			end
 		end
-	end
 
-	if #deadTargets == 0 then
-		exports['pNotify']:SendNotification({ text = 'No dead player nearby.', type = 'error', timeout = 3000 })
-		return
-	end
-
-	runReviveAnimation(function()
-		TriggerServerEvent('esx_ambulancejob:removeItem', 'ag_medikit')
-		for _, playerId in ipairs(deadTargets) do
-			TriggerServerEvent('esx_ambulancejob:revive', GetPlayerServerId(playerId))
-			sendMedicBill(playerId, billAmount, "Fine: Mass Revive")
+		if #deadTargets == 0 then
+			exports['pNotify']:SendNotification({ text = 'No dead player nearby.', type = 'error', timeout = 3000 })
+			return
 		end
+
+		runReviveAnimation(function()
+			TriggerServerEvent('esx_ambulancejob:removeItem', reviveItem)
+			for _, playerId in ipairs(deadTargets) do
+				TriggerServerEvent('esx_ambulancejob:revive', GetPlayerServerId(playerId))
+				sendMedicBill(playerId, billAmount, "Fine: Mass Revive")
+			end
+		end)
 	end)
 end
 
 local function doSingleHeal(targetPlayer, billAmount)
-	if _CHKHASITEM('ag_medikit') <= 0 then
-		exports['pNotify']:SendNotification({ text = 'You do not have medikit.', type = 'error', timeout = 3000 })
-		return
-	end
+	withMedicActionItem('heal', function(healItem)
+		local targetPed = GetPlayerPed(targetPlayer)
+		if GetEntityHealth(targetPed) <= 0 then return end
 
-	local targetPed = GetPlayerPed(targetPlayer)
-	if GetEntityHealth(targetPed) <= 0 then return end
-
-	runHealAnimation(function()
-		TriggerServerEvent('esx_ambulancejob:removeItem', 'ag_medikit')
-		TriggerServerEvent('esx_ambulancejob:heal', GetPlayerServerId(targetPlayer), 'big')
-		sendMedicBill(targetPlayer, billAmount, "Fine: Heal")
+		runHealAnimation(function()
+			TriggerServerEvent('esx_ambulancejob:removeItem', healItem)
+			TriggerServerEvent('esx_ambulancejob:heal', GetPlayerServerId(targetPlayer), 'big')
+			sendMedicBill(targetPlayer, billAmount, "Fine: Heal")
+		end)
 	end)
 end
 
 local function doMassHeal(radius, billAmount)
-	if _CHKHASITEM('ag_medikit') <= 0 then
-		exports['pNotify']:SendNotification({ text = 'You do not have medikit.', type = 'error', timeout = 3000 })
-		return
-	end
-
-	local nearbyPlayers = ESX.Game.GetPlayersInArea(GetEntityCoords(PlayerPedId()), radius or 5.0)
-	local aliveTargets = {}
-	for _, playerId in ipairs(nearbyPlayers) do
-		if playerId ~= PlayerId() then
-			local ped = GetPlayerPed(playerId)
-			if GetEntityHealth(ped) > 0 then table.insert(aliveTargets, playerId) end
+	withMedicActionItem('heal', function(healItem)
+		local nearbyPlayers = ESX.Game.GetPlayersInArea(GetEntityCoords(PlayerPedId()), radius or 5.0)
+		local aliveTargets = {}
+		for _, playerId in ipairs(nearbyPlayers) do
+			if playerId ~= PlayerId() then
+				local ped = GetPlayerPed(playerId)
+				if GetEntityHealth(ped) > 0 then table.insert(aliveTargets, playerId) end
+			end
 		end
-	end
 
-	if #aliveTargets == 0 then
-		exports['pNotify']:SendNotification({ text = 'No player nearby.', type = 'error', timeout = 3000 })
-		return
-	end
-
-	runHealAnimation(function()
-		TriggerServerEvent('esx_ambulancejob:removeItem', 'ag_medikit')
-		for _, playerId in ipairs(aliveTargets) do
-			TriggerServerEvent('esx_ambulancejob:heal', GetPlayerServerId(playerId), 'big')
-			sendMedicBill(playerId, billAmount, "Fine: Mass Heal")
+		if #aliveTargets == 0 then
+			exports['pNotify']:SendNotification({ text = 'No player nearby.', type = 'error', timeout = 3000 })
+			return
 		end
+
+		runHealAnimation(function()
+			TriggerServerEvent('esx_ambulancejob:removeItem', healItem)
+			for _, playerId in ipairs(aliveTargets) do
+				TriggerServerEvent('esx_ambulancejob:heal', GetPlayerServerId(playerId), 'big')
+				sendMedicBill(playerId, billAmount, "Fine: Mass Heal")
+			end
+		end)
 	end)
 end
 
@@ -1091,15 +1123,30 @@ end
 function OpenPharmacyMenu()
 	ESX.UI.Menu.CloseAll()
 
+	local elements = {}
+	local pharmacyItems = (Config and Config.PharmacyItems) or {}
+
+	for _, itemData in ipairs(pharmacyItems) do
+		table.insert(elements, {
+			label = ('<i class="fa-sharp fa-solid fa-dollar-sign"></i>  :  %s'):format(itemData.label or itemData.item),
+			value = itemData.item,
+			count = tonumber(itemData.count) or 1
+		})
+	end
+
+	if #elements == 0 then
+		elements = {
+			{ label = '<i class="fa-sharp fa-solid fa-dollar-sign"></i>  :  First Aid Kit', value = 'ag_medikit', count = 1 },
+			{ label = '<i class="fa-sharp fa-solid fa-dollar-sign"></i>  :  Oxygen Mask', value = 'ag_scuba', count = 1 },
+		}
+	end
+
 	ESX.UI.Menu.Open('default', GetCurrentResourceName(), 'pharmacy', {
 		title    = _U('pharmacy_menu_title'),
 		align    = 'top-right',
-		elements = {
-			{ label = '<i class="fa-sharp fa-solid fa-dollar-sign"></i>  :  First Aid Kit', value = 'ag_medikit' },
-			{ label = '<i class="fa-sharp fa-solid fa-dollar-sign"></i>  :  Oxygen Mask',   value = 'ag_scuba' },
-		}
+		elements = elements
 	}, function(data, menu)
-		TriggerServerEvent('esx_ambulancejob:giveItem', data.current.value)
+		TriggerServerEvent('esx_ambulancejob:giveItem', data.current.value, tonumber(data.current.count) or 1)
 	end, function(data, menu)
 		safeCloseMenu(menu)
 	end)
@@ -1126,10 +1173,26 @@ AddEventHandler('esx_ambulancejob:heal', function(healType, quiet)
 end)
 
 function _CHKHASITEM(Item)
-	_INVENTORY_ITEM = ESX.GetPlayerData().inventory
-	for key, value in pairs(_INVENTORY_ITEM) do
-		if value.name == Item then
-			return value.count
+	if not Item or Item == '' then
+		return 0
+	end
+
+	local itemName = string.lower(tostring(Item))
+
+	if ESX.SearchInventory then
+		local ok, result = pcall(function()
+			return ESX.SearchInventory(itemName, true)
+		end)
+		if ok and result ~= nil then
+			return tonumber(result) or 0
+		end
+	end
+
+	local inventory = ESX.GetPlayerData() and ESX.GetPlayerData().inventory or {}
+	for _, value in pairs(inventory) do
+		local invName = value and value.name and string.lower(tostring(value.name)) or nil
+		if invName == itemName then
+			return tonumber(value.count) or 0
 		end
 	end
 	return 0

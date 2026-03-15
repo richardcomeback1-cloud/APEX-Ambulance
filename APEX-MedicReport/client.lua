@@ -28,7 +28,7 @@ Citizen.CreateThread(function()
 	end
     ESX.PlayerData = ESX.GetPlayerData()
 	if ESX.PlayerData and ESX.PlayerData.job and ESX.PlayerData.job.name then
-		TriggerServerEvent('nakin_medicreport:cacheJob', ESX.PlayerData.job.name)
+		TriggerServerEvent(scriptName..':cacheJob', ESX.PlayerData.job.name)
 	end
     ScriptWork()
 end)
@@ -36,7 +36,7 @@ end)
 RegisterNetEvent('esx:setJob')
 AddEventHandler('esx:setJob', function(job)
 	if job and job.name then
-		TriggerServerEvent('nakin_medicreport:cacheJob', job.name)
+		TriggerServerEvent(scriptName..':cacheJob', job.name)
 	end
 end)
 
@@ -59,7 +59,7 @@ function ScriptWork()
 
 	-- RegisterCommand("al",function(source, args)
 	-- 	if args[1] then
-	-- 		exports['nakin_medicreport']:SendAlert({
+	-- 		exports['APEX-MedicReport']:SendAlert({
 	-- 			text = "โดนห่อศพ "..args[1].."",
 	-- 			color = "rgb(255, 0, 54, 0.5)",
 	-- 			type = "bodybag"
@@ -68,13 +68,13 @@ function ScriptWork()
 	-- end)
 
 	-- RegisterCommand("al3",function(source, args)
-	-- 	exports['nakin_medicreport']:SendAlert({
+	-- 	exports['APEX-MedicReport']:SendAlert({
 	-- 		text = "25:34",
 	-- 	})
 	-- end)
 
 	-- RegisterCommand("al2",function(source, args)
-	-- 	exports['nakin_medicreport']:SendAlert()
+	-- 	exports['APEX-MedicReport']:SendAlert()
 	-- end)
 
 	RegisterCommand("medicpreview", function(source, args)
@@ -182,7 +182,7 @@ function ScriptWork()
 				if newdata and newdata.name and newdata.phone then
 					previewText = ("คนสลบกดเรียกเคส: %s (%s)"):format(newdata.name, newdata.phone)
 				end
-				TriggerEvent("nakin_allnotify:AddAlert",{
+				TriggerEvent("APEX-AllNotify:AddAlert",{
 					job = "ambulance",
 					text = previewText,
 					waypoint = true,
@@ -193,6 +193,7 @@ function ScriptWork()
 			end
 			newdata.time = newdata.servertime
 			newdata.remain = tonumber(newdata.remain) or Config["DefaultCaseRemainSeconds"] or 2700
+			newdata.pressedCount = tonumber(newdata.pressedCount) or 1
 			newdata.remaintext = string.format("%02d:%02d", math.floor(newdata.remain / 60), newdata.remain % 60)
 			table.insert(AlertData, newdata)
 			if newdata.caseid then
@@ -203,7 +204,7 @@ function ScriptWork()
 	end)
 
 	RegisterNetEvent(scriptName..':UpdateCase')
-	AddEventHandler(scriptName..':UpdateCase', function(caseid,status,text,ac)
+	AddEventHandler(scriptName..':UpdateCase', function(caseid,status,text,ac,pressedCount)
 		if ESX.GetPlayerData().job.name == "ambulance" then
 			if status == -1 then
 				AlertData = {}
@@ -220,6 +221,7 @@ function ScriptWork()
 					else
 						targetCase.text = text
 						targetCase.status = status
+						targetCase.pressedCount = tonumber(pressedCount) or targetCase.pressedCount
 						if status == 2 and ac ~= nil then
 							targetCase.ac = ac
 						end
@@ -234,6 +236,7 @@ function ScriptWork()
 							else
 								AlertData[k].text = text
 								AlertData[k].status = status
+								AlertData[k].pressedCount = tonumber(pressedCount) or AlertData[k].pressedCount
 								if status == 2 and ac ~= nil then
 									AlertData[k].ac = ac
 								end
@@ -295,6 +298,31 @@ function ScriptWork()
 							break
 						end
 					end
+				end
+			end
+		end
+
+		RefreshTabletUI()
+	end)
+
+	RegisterNetEvent(scriptName..':SyncCases')
+	AddEventHandler(scriptName..':SyncCases', function(cases)
+		if ESX.GetPlayerData().job.name ~= "ambulance" then
+			return
+		end
+
+		AlertData = {}
+		AlertCaseIndexMap = {}
+
+		if type(cases) == 'table' then
+			for _, caseData in ipairs(cases) do
+				caseData.time = caseData.servertime or os.time()
+				caseData.remain = tonumber(caseData.remain) or Config["DefaultCaseRemainSeconds"] or 2700
+				caseData.pressedCount = tonumber(caseData.pressedCount) or 1
+				caseData.remaintext = ConvertSecondsToClock(caseData.remain)
+				table.insert(AlertData, caseData)
+				if caseData.caseid then
+					AlertCaseIndexMap[tonumber(caseData.caseid)] = #AlertData
 				end
 			end
 		end
@@ -504,13 +532,24 @@ function ScriptWork()
 		end)
 	end)
 
-	RegisterNUICallback('RemoveAll', function(data)
+	RegisterNUICallback('RemoveAll', function(data, cb)
 		if not Waiting then
 			Waiting = true
+
+			-- ลบเคสปลอดภัยในหน้าเราออกทันทีให้ UI อัปเดตตรงตามที่กด
+			for i = #AlertData, 1, -1 do
+				if tonumber(AlertData[i].status) == 3 then
+					table.remove(AlertData, i)
+				end
+			end
+			RefreshTabletUI()
+
 			TriggerServerEvent(scriptName..':UpdateCase',-1, "deleteall")
 			Citizen.Wait(1000)
 			Waiting = false
 		end
+
+		if cb then cb('ok') end
 	end)
 
 	RegisterNUICallback('addblacklistnumber', function(data)

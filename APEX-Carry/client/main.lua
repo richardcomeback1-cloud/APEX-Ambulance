@@ -26,6 +26,7 @@ local StatePlayer = {
 	LastAnim = nil,
 	LastDictAnim = nil,
 	IsCarryEmote = false,
+	CarryType = nil,
 }
 
 local Next_hide = 0
@@ -33,6 +34,46 @@ local Next_show = 0
 local Status_Toxic = 0
 
 PlayerListId = {}
+
+local function resetCarryToxicState()
+	if Next_hide > GetGameTimer() or Status_Toxic == 4 then
+		SendNUIMessage({
+			action = "Hide"
+		})
+		Next_hide = 0
+	end
+	Status_Toxic = 0
+	Next_show = 0
+end
+
+local function dropCurrentCorpseCarry()
+	if StatePlayer.IsCarry and StatePlayer.CarryTarget and StatePlayer.CarryTarget > 0 then
+		TriggerServerEvent("NSPx_HoldUp:DropCorpse", StatePlayer.CarryTarget)
+		if StatePlayer.LastDictAnim and StatePlayer.LastAnim then
+			StopAnimTask(PlayerPedId(), StatePlayer.LastDictAnim, StatePlayer.LastAnim, 3.0)
+		end
+		StatePlayer.IsCarry = false
+		StatePlayer.CarryTarget = 0
+		StatePlayer.CarryType = nil
+		resetCarryToxicState()
+	end
+end
+
+local function shouldAutoDropCorpseCarry(targetPed)
+	if not targetPed or not DoesEntityExist(targetPed) then
+		return true
+	end
+
+	local isDeadOrDying = IsPedDeadOrDying(targetPed, true)
+	local isFatallyInjured = IsPedFatallyInjured(targetPed)
+	local health = GetEntityHealth(targetPed)
+
+	if (not isDeadOrDying and not isFatallyInjured) or health > 101 then
+		return true
+	end
+
+	return false
+end
 
 local function getNearestPlayerInArea(range, predicate)
 	local myPed = PlayerPedId()
@@ -63,6 +104,81 @@ local function getNearestPlayerInArea(range, predicate)
 	end
 
 	return nearestPlayer, nearestDist
+end
+
+local function canUseAliveCarryMode()
+	if not ESX or not ESX.PlayerData or not ESX.PlayerData.job then
+		return false
+	end
+
+	local jobName = ESX.PlayerData.job.name
+	return jobName == "ambulance" or jobName == "police" or jobName == "mechanic" or jobName == "admin" or jobName == "council"
+end
+
+local function startDeadCarryShortcut()
+	if IsPedBeingStunned(PlayerPedId()) then
+		return
+	end
+
+	if StatePlayer.IsCarry then
+		dropCurrentCorpseCarry()
+		return
+	end
+
+	local targetPlayer = getNearestPlayerInArea(2.0, function(targetPed)
+		return IsPedDeadOrDying(targetPed, true)
+	end)
+
+	if not targetPlayer then
+		return
+	end
+
+	StatePlayer.IsCarry = true
+	StatePlayer.CarryType = "corpse"
+	LoadAnimationDictionary("missfinale_c2mcs_1")
+	TaskPlayAnim(PlayerPedId(), "missfinale_c2mcs_1", "fin_c2_mcs_1_camman", 8.0, 8.0, -1, 49, 0,
+		false, false, false)
+	StatePlayer.LastAnim = "fin_c2_mcs_1_camman"
+	StatePlayer.LastDictAnim = "missfinale_c2mcs_1"
+
+	StatePlayer.CarryTarget = tonumber(GetPlayerServerId(targetPlayer))
+	TriggerServerEvent("NSPx_HoldUp:CarryCorpse", StatePlayer.CarryTarget)
+	while not HasAnimDictLoaded("dead@fall") do
+		RequestAnimDict("dead@fall")
+		Citizen.Wait(100)
+	end
+
+	ClearPedTasksImmediately(GetPlayerPed(targetPlayer))
+end
+
+local function startAliveCarryShortcut()
+	if not canUseAliveCarryMode() then
+		return
+	end
+
+	if StatePlayer.IsCarry then
+		dropCurrentCorpseCarry()
+		return
+	end
+
+	local targetPlayer = getNearestPlayerInArea(2.0, function(targetPed)
+		return not IsPedDeadOrDying(targetPed)
+	end)
+
+	if not targetPlayer then
+		return
+	end
+
+	StatePlayer.IsCarry = true
+	StatePlayer.CarryType = "alive"
+	LoadAnimationDictionary("missfinale_c2mcs_1")
+	TaskPlayAnim(PlayerPedId(), "missfinale_c2mcs_1", "fin_c2_mcs_1_camman", 8.0, 8.0, -1, 49, 0,
+		false, false, false)
+	StatePlayer.LastAnim = "fin_c2_mcs_1_camman"
+	StatePlayer.LastDictAnim = "missfinale_c2mcs_1"
+
+	StatePlayer.CarryTarget = tonumber(GetPlayerServerId(targetPlayer))
+	TriggerServerEvent("NSPx_HoldUp:CarrySync", StatePlayer.CarryTarget)
 end
 
 function OpenActionMenuInteraction(target)
@@ -126,71 +242,9 @@ function OpenActionMenuInteraction(target)
 			ESX.UI.Menu.CloseAll()
 
 			if data2.current.value == 'drag3' then
-				if IsPedBeingStunned(PlayerPedId()) then
-					return
-				end
-				if StatePlayer.IsCarry then
-					StatePlayer.IsCarry = false
-					StopAnimTask(PlayerPedId(), StatePlayer.LastDictAnim, StatePlayer.LastAnim, 3.0)
-					TriggerServerEvent("NSPx_HoldUp:DropCorpse", StatePlayer.CarryTarget)
-					StatePlayer.CarryTarget = 0
-
-					if Next_hide > GetGameTimer() or Status_Toxic == 4 then
-						SendNUIMessage({
-							action = "Hide"
-						})
-						Next_hide = 0
-					end
-					Status_Toxic = 0
-					Next_show = 0
-					return
-				end
-
-				local targetPlayer = getNearestPlayerInArea(2.0, function(targetPed)
-					return IsPedDeadOrDying(targetPed, true)
-				end)
-
-				if targetPlayer then
-					StatePlayer.IsCarry = true
-					LoadAnimationDictionary("missfinale_c2mcs_1")
-					TaskPlayAnim(PlayerPedId(), "missfinale_c2mcs_1", "fin_c2_mcs_1_camman", 8.0, 8.0, -1, 49, 0,
-						false, false, false)
-					StatePlayer.LastAnim = "fin_c2_mcs_1_camman"
-					StatePlayer.LastDictAnim = "missfinale_c2mcs_1"
-
-					StatePlayer.CarryTarget = tonumber(GetPlayerServerId(targetPlayer))
-					TriggerServerEvent("NSPx_HoldUp:CarryCorpse", StatePlayer.CarryTarget)
-					while not HasAnimDictLoaded("dead@fall") do
-						RequestAnimDict("dead@fall")
-						Citizen.Wait(100)
-					end
-
-					ClearPedTasksImmediately(GetPlayerPed(targetPlayer))
-				end
+				startDeadCarryShortcut()
 			elseif data2.current.value == 'drag_alive_job' then
-				if StatePlayer.IsCarry then
-					StatePlayer.IsCarry = false
-					StopAnimTask(PlayerPedId(), StatePlayer.LastDictAnim, StatePlayer.LastAnim, 3.0)
-					TriggerServerEvent("NSPx_HoldUp:DropCorpse", StatePlayer.CarryTarget)
-					StatePlayer.CarryTarget = 0
-					return
-				end
-
-				local targetPlayer = getNearestPlayerInArea(2.0, function(targetPed)
-					return not IsPedDeadOrDying(targetPed)
-				end)
-
-				if targetPlayer then
-					StatePlayer.IsCarry = true
-					LoadAnimationDictionary("missfinale_c2mcs_1")
-					TaskPlayAnim(PlayerPedId(), "missfinale_c2mcs_1", "fin_c2_mcs_1_camman", 8.0, 8.0, -1, 49, 0,
-						false, false, false)
-					StatePlayer.LastAnim = "fin_c2_mcs_1_camman"
-					StatePlayer.LastDictAnim = "missfinale_c2mcs_1"
-
-					StatePlayer.CarryTarget = tonumber(GetPlayerServerId(targetPlayer))
-					TriggerServerEvent("NSPx_HoldUp:CarrySync", StatePlayer.CarryTarget)
-				end
+				startAliveCarryShortcut()
 			elseif data2.current.value == 'drag_job' then
 				local player, distance = ESX.Game.GetClosestPlayer()
 				playerlist = {}
@@ -255,10 +309,7 @@ function OpenActionMenuInteraction(target)
 				end)
 			elseif data2.current.value == 'carry' then
 				if StatePlayer.IsCarry then
-					StatePlayer.IsCarry = false
-					StopAnimTask(PlayerPedId(), StatePlayer.LastDictAnim, StatePlayer.LastAnim, 3.0)
-					TriggerServerEvent("NSPx_HoldUp:DropCorpse", StatePlayer.CarryTarget)
-					StatePlayer.CarryTarget = 0
+					dropCurrentCorpseCarry()
 					return
 				end
 
@@ -384,20 +435,56 @@ end, false)
 
 RegisterKeyMapping('apex_carry_menu', 'APEX Carry Menu', 'keyboard', 'F9')
 
+local function registerCarryShortcut(modeConfig, action)
+	if not modeConfig or not modeConfig.enabled then
+		return
+	end
+
+	local commandName = modeConfig.command
+	if not commandName or commandName == '' then
+		return
+	end
+
+	RegisterCommand(commandName, function()
+		if not Cfg.Shortcut or not Cfg.Shortcut.Enabled then
+			return
+		end
+
+		if ESX.UI.Menu.IsOpen('default', GetCurrentResourceName(), 'action_menu') then
+			return
+		end
+
+		if not IsPedOnFoot(PlayerPedId()) then
+			return
+		end
+
+		action()
+	end, false)
+
+	RegisterKeyMapping(commandName, modeConfig.label or commandName, 'keyboard', modeConfig.defaultKey or 'UNASSIGNED')
+end
+
+CreateThread(function()
+	while not ESX or not ESX.PlayerData or not ESX.PlayerData.job do
+		Wait(200)
+	end
+
+	if not Cfg.Shortcut or not Cfg.Shortcut.Enabled or not Cfg.Shortcut.Modes then
+		return
+	end
+
+	registerCarryShortcut(Cfg.Shortcut.Modes.CarryDead, startDeadCarryShortcut)
+	registerCarryShortcut(Cfg.Shortcut.Modes.CarryAlive, startAliveCarryShortcut)
+	registerCarryShortcut(Cfg.Shortcut.Modes.CarryEmote, CarryEmote)
+end)
+
 RegisterNetEvent("NSPx_HoldUp:ClearCarry")
 AddEventHandler("NSPx_HoldUp:ClearCarry", function(TargetCarry)
 	StatePlayer.IsCarry = false
 	StopAnimTask(PlayerPedId(), StatePlayer.LastDictAnim, StatePlayer.LastAnim, 3.0)
 	StatePlayer.CarryTarget = 0
-
-	if Next_hide > GetGameTimer() or Status_Toxic == 4 then
-		SendNUIMessage({
-			action = "Hide"
-		})
-		Next_hide = 0
-	end
-	Status_Toxic = 0
-	Next_show = 0
+	StatePlayer.CarryType = nil
+	resetCarryToxicState()
 end)
 
 RegisterNetEvent("NSPx_HoldUp:CarryCorpse")
@@ -474,13 +561,19 @@ end)
 RegisterNetEvent("NSPx_HoldUp:DropCorpse")
 AddEventHandler("NSPx_HoldUp:DropCorpse", function(TargetCarry)
 	local playerPed = PlayerPedId()
+	local wasDeadBody = IsPedDeadOrDying(playerPed, true) or IsPedFatallyInjured(playerPed)
 	DetachEntity(playerPed, true, false)
 	FreezeEntityPosition(playerPed, false)
 	StatePlayer.BeCarry = false
 	StatePlayer.TargetCarry = 0
-	Wait(100)
-	SetEntityCoords(playerPed, GetEntityCoords(playerPed) + vector3(0, 0, 0.50))
-	ClearPedTasksImmediately(PlayerPedId())
+
+	if wasDeadBody then
+		Wait(100)
+		SetEntityCoords(playerPed, GetEntityCoords(playerPed) + vector3(0, 0, 0.50))
+		ClearPedTasksImmediately(playerPed)
+	else
+		ClearPedTasks(playerPed)
+	end
 end)
 
 RegisterNetEvent("NSPx_HoldUp:DropCarryEmote")
@@ -504,6 +597,11 @@ AddEventHandler("NSPx_HoldUp:ClearCarryEmote", function()
 end)
 
 AddEventHandler('playerSpawned', function()
+	if StatePlayer.IsCarry then
+		dropCurrentCorpseCarry()
+		PlayerListId = {}
+	end
+
 	if StatePlayer.BeCarry then
 		TriggerServerEvent("NSPx_HoldUp:ClearCarry", StatePlayer.TargetCarry)
 		StatePlayer.BeCarry = false
@@ -524,18 +622,7 @@ end)
 AddEventHandler('esx:onPlayerDeath', function(data)
 	Wait(200)
 	if StatePlayer.IsCarry and not StatePlayer.BeCarry then
-		TriggerServerEvent("NSPx_HoldUp:DropCorpse", StatePlayer.CarryTarget)
-		StatePlayer.IsCarry = false
-		StatePlayer.CarryTarget = 0
-
-		if Next_hide > GetGameTimer() or Status_Toxic == 4 then
-			SendNUIMessage({
-				action = "Hide"
-			})
-			Next_hide = 0
-		end
-		Status_Toxic = 0
-		Next_show = 0
+		dropCurrentCorpseCarry()
 	end
 	if StatePlayer.IsCarryEmote then
 		if StatePlayer.BeCarry then
@@ -575,29 +662,43 @@ CreateThread(function()
 				StatePlayer.IsCarryEmote = false
 			end
 
-			if StatePlayer.IsCarry then
-				if (Next_hide and Next_hide < GetGameTimer()) and Next_show == 0 and Status_Toxic <= 3 then
-					local toxic_level = Player(StatePlayer.CarryTarget).state.toxic
-					Status_Toxic = toxic_level
-					SendNUIMessage({ action = "Hide" })
-					Next_hide = 0
-					Next_show = TimePhase(toxic_level)
+			if StatePlayer.IsCarry and StatePlayer.CarryType == "corpse" then
+				local targetPlayerId = GetPlayerFromServerId(StatePlayer.CarryTarget)
+				if targetPlayerId == -1 then
+					dropCurrentCorpseCarry()
+					sleep = 1200
+				else
+					local targetPed = GetPlayerPed(targetPlayerId)
+					if shouldAutoDropCorpseCarry(targetPed) then
+						dropCurrentCorpseCarry()
+						sleep = 1200
+					end
 				end
 
-				if Next_show and Next_show < GetGameTimer() and Next_hide == 0 and Status_Toxic <= 3 then
-					local toxic_level = Player(StatePlayer.CarryTarget).state.toxic
-					Status_Toxic = toxic_level
-					Next_hide = TimePhase(toxic_level)
-					Next_show = 0
-					SendNUIMessage({
-						action = "Show",
-						Phase = toxic_level
-					})
-				end
+				if StatePlayer.IsCarry then
+					if (Next_hide and Next_hide < GetGameTimer()) and Next_show == 0 and Status_Toxic <= 3 then
+						local toxic_level = Player(StatePlayer.CarryTarget).state.toxic
+						Status_Toxic = toxic_level
+						SendNUIMessage({ action = "Hide" })
+						Next_hide = 0
+						Next_show = TimePhase(toxic_level)
+					end
 
-				if Status_Toxic == 4 then
-					SetEntityHealth(playerPed, GetEntityHealth(playerPed) - 2)
-					sleep = 1000
+					if Next_show and Next_show < GetGameTimer() and Next_hide == 0 and Status_Toxic <= 3 then
+						local toxic_level = Player(StatePlayer.CarryTarget).state.toxic
+						Status_Toxic = toxic_level
+						Next_hide = TimePhase(toxic_level)
+						Next_show = 0
+						SendNUIMessage({
+							action = "Show",
+							Phase = toxic_level
+						})
+					end
+
+					if Status_Toxic == 4 then
+						SetEntityHealth(playerPed, GetEntityHealth(playerPed) - 2)
+						sleep = 1000
+					end
 				end
 			end
 		end
@@ -613,18 +714,7 @@ exports('DropPlayer', function()
 		StatePlayer.IsCarryEmote = false
 	end
 	if StatePlayer.IsCarry then
-		TriggerServerEvent("NSPx_HoldUp:DropCorpse", StatePlayer.CarryTarget)
-		StatePlayer.IsCarry = false
-		StatePlayer.CarryTarget = 0
-
-		if Next_hide > GetGameTimer() or Status_Toxic == 4 then
-			SendNUIMessage({
-				action = "Hide"
-			})
-			Next_hide = 0
-		end
-		Status_Toxic = 0
-		Next_show = 0
+		dropCurrentCorpseCarry()
 	end
 end)
 
@@ -658,14 +748,7 @@ end)
 
 RegisterNetEvent("NSPx_HoldUp:Hide")
 AddEventHandler("NSPx_HoldUp:Hide", function()
-	if Next_hide > GetGameTimer() or Status_Toxic == 4 then
-		SendNUIMessage({
-			action = "Hide"
-		})
-		Next_hide = 0
-	end
-	Status_Toxic = 0
-	Next_show = 0
+	resetCarryToxicState()
 end)
 
 exports("Hide_Toxic", function()

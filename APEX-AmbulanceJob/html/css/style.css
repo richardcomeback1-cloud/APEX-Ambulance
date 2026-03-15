@@ -71,6 +71,21 @@ body {
   animation: fadeInScale 0.6s ease-out forwards, pulse-8e352067 5s linear 0.6s infinite;
 }
 
+.display_dead_screen.fade-out {
+  animation: fadeOutSoft 0.22s ease-out forwards;
+}
+
+@keyframes fadeOutSoft {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.01);
+  }
+}
+
 @keyframes fadeInScale {
   0% {
     opacity: 0;

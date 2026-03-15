@@ -1,11 +1,22 @@
 $(function () {
+    let hideDeadScreenTimer = null
+
     function display(bool) {
+        const deadScreen = $('.display_dead_screen');
+
+        if (hideDeadScreenTimer) {
+            clearTimeout(hideDeadScreenTimer);
+            hideDeadScreenTimer = null;
+        }
+
         if (bool) {
-            // console.log('ok')
-           $('.display_dead_screen').show().addClass('fade-in');
+            deadScreen.stop(true, true).css('display', 'block').removeClass('fade-out').addClass('fade-in');
         } else {
-            $('.display_dead_screen').removeClass('spawn_time fade-in')
-            $('.display_dead_screen').fadeOut(300);
+            deadScreen.removeClass('spawn_time fade-in').addClass('fade-out');
+            hideDeadScreenTimer = setTimeout(function() {
+                deadScreen.css('display', 'none').removeClass('fade-out');
+                hideDeadScreenTimer = null;
+            }, 220);
         }
     }
 

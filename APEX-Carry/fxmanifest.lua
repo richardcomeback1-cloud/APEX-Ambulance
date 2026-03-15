@@ -9,6 +9,7 @@ server_scripts {
 
 client_scripts {
 	'config.lua',
+	'config-key.lua',
 	'client/main.lua',
 }
 

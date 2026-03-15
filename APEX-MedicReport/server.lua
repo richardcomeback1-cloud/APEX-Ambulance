@@ -71,6 +71,20 @@ local function getPlayerNameSafe(source)
     return GetPlayerName(source) or ('ID ' .. tostring(source))
 end
 
+local function getRealRespawnRemainSeconds(source)
+    local playerState = Player(source) and Player(source).state
+    if not playerState then
+        return nil
+    end
+
+    local remain = tonumber(playerState.ambulanceRespawnRemain)
+    if remain and remain >= 0 then
+        return math.floor(remain)
+    end
+
+    return nil
+end
+
 local function eachAmbulance(cb)
     for playerId, _ in pairs(AmbulancePlayers) do
         local xPlayer = ESX.GetPlayerFromId(playerId)
@@ -163,9 +177,42 @@ local function addCase(source, data)
     end
 
 
-    local randomCaseId = generateCaseId()
-
     local callerName = getPlayerNameSafe(source)
+    local realRemain = getRealRespawnRemainSeconds(source)
+
+    local existingCase = nil
+    for _, caseData in ipairs(AlertCases) do
+        if tonumber(caseData.id) == tonumber(source) and tonumber(caseData.status) == 1 then
+            existingCase = caseData
+            break
+        end
+    end
+
+    if existingCase then
+        existingCase.name = callerName
+        existingCase.phone = phone
+        existingCase.coords = GetEntityCoords(GetPlayerPed(source))
+        existingCase.type = data and data.type or existingCase.type
+        existingCase.color = data and data.color or existingCase.color
+        existingCase.servertime = os.time()
+        existingCase.remain = (data and tonumber(data.remain)) or realRemain or existingCase.remain or DefaultCaseRemainSeconds
+        existingCase.pressedCount = (tonumber(existingCase.pressedCount) or 1) + 1
+
+        existingCase.text = 'ยังไม่ได้รับความช่วยเหลือ'
+
+        eachAmbulance(function(playerId)
+            TriggerClientEvent(scriptName .. ':UpdateCase', playerId, existingCase.caseid, existingCase.status, existingCase.text, existingCase.ac, existingCase.pressedCount)
+        end)
+        TriggerClientEvent(scriptName .. ':UpdateId', source, existingCase.ac)
+
+        TriggerClientEvent(scriptName .. ':SetCanNeedHelp', source, false)
+        SetTimeout(5000, function()
+            TriggerClientEvent(scriptName .. ':SetCanNeedHelp', source, true)
+        end)
+        return
+    end
+
+    local randomCaseId = generateCaseId()
 
     local caseData = {
         id = source,
@@ -173,9 +220,10 @@ local function addCase(source, data)
         caseid = randomCaseId,
         name = callerName,
         phone = phone,
-        remain = (data and tonumber(data.remain)) or DefaultCaseRemainSeconds,
+        remain = (data and tonumber(data.remain)) or realRemain or DefaultCaseRemainSeconds,
         status = 1,
         text = data and data.text or 'ต้องการความช่วยเหลือ',
+        pressedCount = 1,
         type = data and data.type or 'normal',
         color = data and data.color or nil,
         coords = GetEntityCoords(GetPlayerPed(source)),
@@ -217,7 +265,7 @@ end
 
 local function refreshCaseForAmbulance(caseData)
     eachAmbulance(function(playerId)
-        TriggerClientEvent(scriptName .. ':UpdateCase', playerId, caseData.caseid, caseData.status, caseData.text, caseData.ac)
+        TriggerClientEvent(scriptName .. ':UpdateCase', playerId, caseData.caseid, caseData.status, caseData.text, caseData.ac, caseData.pressedCount)
     end)
 end
 
@@ -228,6 +276,12 @@ local function refreshCaseBulkForAmbulance(caseUpdates)
 
     eachAmbulance(function(playerId)
         TriggerClientEvent(scriptName .. ':UpdateCaseBulk', playerId, caseUpdates)
+    end)
+end
+
+local function syncAllCasesToAmbulance()
+    eachAmbulance(function(playerId)
+        TriggerClientEvent(scriptName .. ':SyncCases', playerId, AlertCases)
     end)
 end
 
@@ -280,6 +334,8 @@ local function updateCase(caseId, action)
             end
             refreshCaseBulkForAmbulance(caseUpdates)
         end
+
+        syncAllCasesToAmbulance()
         return
     end
 
@@ -443,6 +499,6 @@ AddEventHandler('esx:setJob', function(sourceId, job, _lastJob)
     setAmbulancePlayer(sourceId, job and job.name == 'ambulance')
 end)
 
-RegisterNetEvent('nakin_medicreport:cacheJob', function(jobName)
+RegisterNetEvent(scriptName .. ':cacheJob', function(jobName)
     setAmbulancePlayer(source, jobName == 'ambulance')
 end)

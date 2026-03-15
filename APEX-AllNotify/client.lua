@@ -30,7 +30,7 @@ Citizen.CreateThread(function()
 
 	local playerJob = ESX.GetPlayerData().job
 	if playerJob and playerJob.name then
-		TriggerServerEvent('nakin_allnotify:cacheJob', playerJob.name)
+		TriggerServerEvent('APEX-AllNotify:cacheJob', playerJob.name)
 	end
 
 	UpdatePosNotify()
@@ -39,7 +39,7 @@ end)
 RegisterNetEvent('esx:setJob')
 AddEventHandler('esx:setJob', function(job)
 	if job and job.name then
-		TriggerServerEvent('nakin_allnotify:cacheJob', job.name)
+		TriggerServerEvent('APEX-AllNotify:cacheJob', job.name)
 	end
 end)
 
@@ -62,8 +62,8 @@ function AddNotify(data)
 	end
 end
 
-RegisterNetEvent('nakin_allnotify:AddNotify')
-AddEventHandler('nakin_allnotify:AddNotify', function(data)
+RegisterNetEvent('APEX-AllNotify:AddNotify')
+AddEventHandler('APEX-AllNotify:AddNotify', function(data)
     exports['APEX-AllNotify']:AddNotify({
 		type = data.type,
 		text = data.text,
@@ -91,8 +91,8 @@ RegisterCommand('notify', function(source, args, rawCommand)
 	end
 end)
 
-RegisterNetEvent('nakin_allnotify:setright')
-AddEventHandler('nakin_allnotify:setright', function(name,right)
+RegisterNetEvent('APEX-AllNotify:setright')
+AddEventHandler('APEX-AllNotify:setright', function(name,right)
 	if right then
 		BaseRight[name] = right
 	else
@@ -213,7 +213,8 @@ AddEventHandler(scriptName..':AddAlert', function(data)
 			coords = data.coords,
 			icon = icon,
 			zone = data.zone,
-			job = data.job
+			job = data.job,
+			case = data.case
 		}
 
 		local blip = AddBlipForRadius(data.coords.x, data.coords.y, data.coords.z , 20.0) -- you can use a higher number for a bigger zone
@@ -278,8 +279,14 @@ Citizen.CreateThread(function()
 			sleep = 25
 			for k, v in pairs(Alert) do
 				if v.time > 0 and v.wp_key then
-					if IsControlPressed(0, Keys["LEFTSHIFT"]) and IsDisabledControlJustReleased(0, Keys[tostring(v.wp_key)]) then
+					if IsControlPressed(0, Keys["LEFTSHIFT"]) and IsDisabledControlJustPressed(0, Keys[tostring(v.wp_key)]) then
 						SetNewWaypoint(v.coords.x, v.coords.y)
+
+						if v.case then
+							TriggerServerEvent('APEX-MedicReport:UpdateCase', v.case, 'getcase')
+							TriggerEvent('APEX-MedicReport:markGPS', v.case)
+						end
+
 						SendNUIMessage({type = "remove", id = k })
 						Alert[k] = nil
 						Citizen.Wait(1000)
@@ -293,8 +300,8 @@ Citizen.CreateThread(function()
 	end
 end)
 
-RegisterNetEvent('nakin_allnotify:CreateAlertZone')
-AddEventHandler('nakin_allnotify:CreateAlertZone', function(coords)
+RegisterNetEvent('APEX-AllNotify:CreateAlertZone')
+AddEventHandler('APEX-AllNotify:CreateAlertZone', function(coords)
 	local index = ""..math.modf(coords.x)..""..math.modf(coords.y)..""
 	if not AlertZone[index] then
 		AlertZone[index] = {coords = coords, time = 20}
@@ -347,7 +354,7 @@ end)
 -- end)
 
 -- RegisterCommand('alert_police', function(source, args, rawCommand)
---     TriggerServerEvent("nakin_allnotify:SendAlert",{
+--     TriggerServerEvent("APEX-AllNotify:SendAlert",{
 --         job = "police",
 --         text = "ขโมยปูน",
 --         waypoint = true,
@@ -358,7 +365,7 @@ end)
 -- end)
 
 -- RegisterCommand('alert_ambulance', function(source, args, rawCommand)
---     TriggerServerEvent("nakin_allnotify:SendAlert",{
+--     TriggerServerEvent("APEX-AllNotify:SendAlert",{
 --         job = "ambulance",
 --         text = "ผู้ป่วย",
 --         waypoint = true,
