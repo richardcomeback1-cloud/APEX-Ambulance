@@ -68,13 +68,22 @@ end
 
 local function getMedicActionItem(actionType)
 	local required = Config and Config.RequiredMedicItems and Config.RequiredMedicItems[actionType] or nil
-	local itemName = (required and required.name) or 'ag_medikit'
-	local itemLabel = (required and required.label) or itemName
+	if not required or not required.name or required.name == '' then
+		return nil, nil
+	end
+
+	local itemName = tostring(required.name)
+	local itemLabel = (required.label and tostring(required.label)) or itemName
 	return itemName, itemLabel
 end
 
 local function canUseMedicActionItem(actionType)
 	local itemName, itemLabel = getMedicActionItem(actionType)
+	if not itemName then
+		exports['pNotify']:SendNotification({ text = ('Missing Config.RequiredMedicItems.%s.name'):format(tostring(actionType)), type = 'error', timeout = 4000 })
+		return false, nil
+	end
+
 	if _CHKHASITEM(itemName) <= 0 then
 		exports['pNotify']:SendNotification({ text = ('You do not have %s.'):format(itemLabel), type = 'error', timeout = 3000 })
 		return false, itemName

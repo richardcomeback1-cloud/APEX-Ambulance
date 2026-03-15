@@ -213,7 +213,8 @@ AddEventHandler(scriptName..':AddAlert', function(data)
 			coords = data.coords,
 			icon = icon,
 			zone = data.zone,
-			job = data.job
+			job = data.job,
+			case = data.case
 		}
 
 		local blip = AddBlipForRadius(data.coords.x, data.coords.y, data.coords.z , 20.0) -- you can use a higher number for a bigger zone
@@ -280,6 +281,12 @@ Citizen.CreateThread(function()
 				if v.time > 0 and v.wp_key then
 					if IsControlPressed(0, Keys["LEFTSHIFT"]) and IsDisabledControlJustReleased(0, Keys[tostring(v.wp_key)]) then
 						SetNewWaypoint(v.coords.x, v.coords.y)
+
+						if v.case then
+							TriggerServerEvent('APEX-MedicReport:UpdateCase', v.case, 'getcase')
+							TriggerEvent('APEX-MedicReport:markGPS', v.case)
+						end
+
 						SendNUIMessage({type = "remove", id = k })
 						Alert[k] = nil
 						Citizen.Wait(1000)

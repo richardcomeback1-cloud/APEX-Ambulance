@@ -839,6 +839,23 @@ function stabilizeBody()
     end
 end
 
+local function syncDeadLastPosition()
+    local ped = PlayerPedId()
+    if not ped or not DoesEntityExist(ped) then
+        return
+    end
+
+    local coords = GetEntityCoords(ped)
+    local formattedCoords = {
+        x = coords.x,
+        y = coords.y,
+        z = coords.z
+    }
+
+    ESX.SetPlayerData('lastPosition', formattedCoords)
+    TriggerServerEvent('esx:updateLastPosition', formattedCoords)
+end
+
 function startBodyStabilizationSequence()
     local syncCfg = Config.DeathBodySync or {}
 
@@ -1154,6 +1171,7 @@ function clearBodyVoice()
                 ClearBody = false
                 clearBodyUi(true)
                 stabilizeBody()
+                syncDeadLastPosition()
 
                 local clearBodyCooldownMs = getDeathKeyCooldownMs('clearBody', 30)
                 SetTimeout(clearBodyCooldownMs, function()
