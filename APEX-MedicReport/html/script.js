@@ -389,19 +389,49 @@ $(function () {
     //     ClickSound.play();
     // })
 
-    let isRemovingAll = false;
-    $(".removeall").on('click', function () {
-        if (isRemovingAll) return;
-        isRemovingAll = true;
+    const button = document.querySelector('.removeall');
 
-        $(".loadremoveall").css({ "width": "100%" });
-        $.post('https://APEX-MedicReport/RemoveAll', JSON.stringify({}));
-        ClickSound.play();
+    let holdTimeout;
+    let progressInterval;
+    let elapsedTime = 0;
+    let isHolding = false;
+    const holdDurationMs = 5000;
 
-        setTimeout(function() {
-            $(".loadremoveall").css({ "width": "0%" });
-            isRemovingAll = false;
-        }, 350);
-    });
+    const resetRemoveAllProgress = () => {
+        clearTimeout(holdTimeout);
+        clearInterval(progressInterval);
+        ClickSound.pause();
+        $(".loadremoveall").css({ "width": "0%" });
+        isHolding = false;
+    };
+
+    if (button) {
+        button.addEventListener('mousedown', () => {
+            if (isHolding) return;
+            isHolding = true;
+            elapsedTime = 0;
+
+            progressInterval = setInterval(() => {
+                elapsedTime += 100;
+                const progress = Math.min((elapsedTime / holdDurationMs) * 100, 100);
+                $(".loadremoveall").css({ "width": `${progress.toFixed(2)}%` });
+            }, 100);
+
+            holdTimeout = setTimeout(() => {
+                if (!isHolding) return;
+                $.post('https://APEX-MedicReport/RemoveAll', JSON.stringify({}));
+                ClickSound.play();
+                resetRemoveAllProgress();
+            }, holdDurationMs);
+        });
+
+        const stopHolding = () => {
+            if (!isHolding) return;
+            resetRemoveAllProgress();
+        };
+
+        button.addEventListener('mouseup', stopHolding);
+        button.addEventListener('mouseleave', stopHolding);
+    }
 
 })
