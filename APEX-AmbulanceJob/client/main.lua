@@ -304,7 +304,7 @@ function startAirdropSpecialButton()
             end
 
             Citizen.Wait(5)
-            if IsControlJustReleased(0, select(2, getDeathKey('respawn', 'G'))) and not isPress then
+            if IsDisabledControlJustReleased(0, select(2, getDeathKey('respawn', 'G'))) and not isPress then
                 isPress = true
 
                 -- เรียก exit function
@@ -346,7 +346,7 @@ function startStelshopSpecialButton()
             end
 
             Citizen.Wait(5)
-            if IsControlJustReleased(0, select(2, getDeathKey('respawn', 'G'))) and not isPress then
+            if IsDisabledControlJustReleased(0, select(2, getDeathKey('respawn', 'G'))) and not isPress then
                 local playerPed = PlayerPedId()
                 local cashMoney = ESX.GetAccountMoney("money")
                 local bankMoney = ESX.GetAccountMoney("bank")
@@ -416,7 +416,7 @@ function startReplightSpecialButton(replightIndex)
             end
 
             Citizen.Wait(5)
-            if IsControlJustReleased(0, select(2, getDeathKey('respawn', 'G'))) and not isPress then
+            if IsDisabledControlJustReleased(0, select(2, getDeathKey('respawn', 'G'))) and not isPress then
                 local playerPed = PlayerPedId()
                 
                 -- ตรวจสอบว่ามีหมอออนไลน์หรือไม่
@@ -541,7 +541,7 @@ function startWaterpipeSpecialButton(waterpipeIndex)
             end
 
             Citizen.Wait(5)
-            if IsControlJustReleased(0, select(2, getDeathKey('respawn', 'G'))) and not isPress then
+            if IsDisabledControlJustReleased(0, select(2, getDeathKey('respawn', 'G'))) and not isPress then
                 local playerPed = PlayerPedId()
                 
                 -- ตรวจสอบว่ามีหมอออนไลน์หรือไม่
@@ -666,7 +666,7 @@ function startMegacementSpecialButton(megacementIndex)
             end
 
             Citizen.Wait(5)
-            if IsControlJustReleased(0, select(2, getDeathKey('respawn', 'G'))) and not isPress then
+            if IsDisabledControlJustReleased(0, select(2, getDeathKey('respawn', 'G'))) and not isPress then
                 local playerPed = PlayerPedId()
                 
                 -- ตรวจสอบว่ามีหมอออนไลน์หรือไม่
@@ -1465,7 +1465,7 @@ function startNoAmbulanceTimer()
                 RespawnTime("00:00")
 
                 Citizen.Wait(5)
-                if IsControlJustReleased(0, select(2, getDeathKey('respawn', 'G'))) and not isPress then
+                if IsDisabledControlJustReleased(0, select(2, getDeathKey('respawn', 'G'))) and not isPress then
                     isPress = true
                     respawnAtConfiguredPoint()
                     break
@@ -1523,7 +1523,7 @@ function startDeathTimer(dynamicTimerMs)
                 if dynamicTimerEnabled then
                     RespawnTime("00:00")
 
-                    if IsControlJustReleased(0, select(2, getDeathKey('respawn', 'G'))) and not isPress then
+                    if IsDisabledControlJustReleased(0, select(2, getDeathKey('respawn', 'G'))) and not isPress then
                         isPress = true
                         RemoveItemsAfterRPDeath()
                         break
