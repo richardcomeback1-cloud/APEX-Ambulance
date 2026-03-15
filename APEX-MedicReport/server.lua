@@ -443,6 +443,6 @@ AddEventHandler('esx:setJob', function(sourceId, job, _lastJob)
     setAmbulancePlayer(sourceId, job and job.name == 'ambulance')
 end)
 
-RegisterNetEvent('nakin_medicreport:cacheJob', function(jobName)
+RegisterNetEvent(scriptName .. ':cacheJob', function(jobName)
     setAmbulancePlayer(source, jobName == 'ambulance')
 end)

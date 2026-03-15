@@ -28,7 +28,7 @@ Citizen.CreateThread(function()
 	end
     ESX.PlayerData = ESX.GetPlayerData()
 	if ESX.PlayerData and ESX.PlayerData.job and ESX.PlayerData.job.name then
-		TriggerServerEvent('nakin_medicreport:cacheJob', ESX.PlayerData.job.name)
+		TriggerServerEvent(scriptName..':cacheJob', ESX.PlayerData.job.name)
 	end
     ScriptWork()
 end)
@@ -36,7 +36,7 @@ end)
 RegisterNetEvent('esx:setJob')
 AddEventHandler('esx:setJob', function(job)
 	if job and job.name then
-		TriggerServerEvent('nakin_medicreport:cacheJob', job.name)
+		TriggerServerEvent(scriptName..':cacheJob', job.name)
 	end
 end)
 
@@ -59,7 +59,7 @@ function ScriptWork()
 
 	-- RegisterCommand("al",function(source, args)
 	-- 	if args[1] then
-	-- 		exports['nakin_medicreport']:SendAlert({
+	-- 		exports['APEX-MedicReport']:SendAlert({
 	-- 			text = "โดนห่อศพ "..args[1].."",
 	-- 			color = "rgb(255, 0, 54, 0.5)",
 	-- 			type = "bodybag"
@@ -68,13 +68,13 @@ function ScriptWork()
 	-- end)
 
 	-- RegisterCommand("al3",function(source, args)
-	-- 	exports['nakin_medicreport']:SendAlert({
+	-- 	exports['APEX-MedicReport']:SendAlert({
 	-- 		text = "25:34",
 	-- 	})
 	-- end)
 
 	-- RegisterCommand("al2",function(source, args)
-	-- 	exports['nakin_medicreport']:SendAlert()
+	-- 	exports['APEX-MedicReport']:SendAlert()
 	-- end)
 
 	RegisterCommand("medicpreview", function(source, args)
