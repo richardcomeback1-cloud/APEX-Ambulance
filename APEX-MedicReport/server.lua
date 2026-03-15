@@ -247,6 +247,12 @@ local function refreshCaseBulkForAmbulance(caseUpdates)
     end)
 end
 
+local function syncAllCasesToAmbulance()
+    eachAmbulance(function(playerId)
+        TriggerClientEvent(scriptName .. ':SyncCases', playerId, AlertCases)
+    end)
+end
+
 local function releaseAcceptedCasesByDoctor(doctorSource, exceptCaseId)
     local normalizedDoctorSource = tonumber(doctorSource)
     local normalizedExceptCaseId = tonumber(exceptCaseId)
@@ -296,6 +302,8 @@ local function updateCase(caseId, action)
             end
             refreshCaseBulkForAmbulance(caseUpdates)
         end
+
+        syncAllCasesToAmbulance()
         return
     end
 

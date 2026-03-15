@@ -302,6 +302,30 @@ function ScriptWork()
 		RefreshTabletUI()
 	end)
 
+	RegisterNetEvent(scriptName..':SyncCases')
+	AddEventHandler(scriptName..':SyncCases', function(cases)
+		if ESX.GetPlayerData().job.name ~= "ambulance" then
+			return
+		end
+
+		AlertData = {}
+		AlertCaseIndexMap = {}
+
+		if type(cases) == 'table' then
+			for _, caseData in ipairs(cases) do
+				caseData.time = caseData.servertime or os.time()
+				caseData.remain = tonumber(caseData.remain) or Config["DefaultCaseRemainSeconds"] or 2700
+				caseData.remaintext = ConvertSecondsToClock(caseData.remain)
+				table.insert(AlertData, caseData)
+				if caseData.caseid then
+					AlertCaseIndexMap[tonumber(caseData.caseid)] = #AlertData
+				end
+			end
+		end
+
+		RefreshTabletUI()
+	end)
+
 	function RefreshTabletUI()
 		SetNewTable()
 		-- print(ESX.DumpTable(AlertData))

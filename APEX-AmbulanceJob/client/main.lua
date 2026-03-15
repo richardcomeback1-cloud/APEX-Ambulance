@@ -21,6 +21,7 @@ local bodywarp = false
 local ClearBody = false
 local AmbulanceBlipTargets = {}
 local clearAmbulancePlayerBlips = function() end
+local setDeathRemainState = function(_) end
 
 Citizen.CreateThread(function()
 	while ESX == nil do
@@ -108,7 +109,7 @@ local ZONE_DETECTION = Config.ZoneDetection
 -- Cache สำหรับประสิทธิภาพ
 local ZONE_PRIORITY = {"training", "airdrop", "stelshop", "replight", "waterpipe", "megacement"}
 
-local function setDeathRemainState(seconds)
+setDeathRemainState = function(seconds)
     local sec = tonumber(seconds)
     if sec and sec >= 0 then
         LocalPlayer.state:set('ambulanceRespawnRemain', math.ceil(sec), true)
