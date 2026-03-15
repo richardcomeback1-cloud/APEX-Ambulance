@@ -26,6 +26,7 @@ local StatePlayer = {
 	LastAnim = nil,
 	LastDictAnim = nil,
 	IsCarryEmote = false,
+	CarryType = nil,
 }
 
 local Next_hide = 0
@@ -53,6 +54,7 @@ local function dropCurrentCorpseCarry()
 		end
 		StatePlayer.IsCarry = false
 		StatePlayer.CarryTarget = 0
+		StatePlayer.CarryType = nil
 		resetCarryToxicState()
 	end
 end
@@ -179,6 +181,7 @@ function OpenActionMenuInteraction(target)
 
 				if targetPlayer then
 					StatePlayer.IsCarry = true
+					StatePlayer.CarryType = "corpse"
 					LoadAnimationDictionary("missfinale_c2mcs_1")
 					TaskPlayAnim(PlayerPedId(), "missfinale_c2mcs_1", "fin_c2_mcs_1_camman", 8.0, 8.0, -1, 49, 0,
 						false, false, false)
@@ -196,10 +199,7 @@ function OpenActionMenuInteraction(target)
 				end
 			elseif data2.current.value == 'drag_alive_job' then
 				if StatePlayer.IsCarry then
-					StatePlayer.IsCarry = false
-					StopAnimTask(PlayerPedId(), StatePlayer.LastDictAnim, StatePlayer.LastAnim, 3.0)
-					TriggerServerEvent("NSPx_HoldUp:DropCorpse", StatePlayer.CarryTarget)
-					StatePlayer.CarryTarget = 0
+					dropCurrentCorpseCarry()
 					return
 				end
 
@@ -209,6 +209,7 @@ function OpenActionMenuInteraction(target)
 
 				if targetPlayer then
 					StatePlayer.IsCarry = true
+					StatePlayer.CarryType = "alive"
 					LoadAnimationDictionary("missfinale_c2mcs_1")
 					TaskPlayAnim(PlayerPedId(), "missfinale_c2mcs_1", "fin_c2_mcs_1_camman", 8.0, 8.0, -1, 49, 0,
 						false, false, false)
@@ -282,10 +283,7 @@ function OpenActionMenuInteraction(target)
 				end)
 			elseif data2.current.value == 'carry' then
 				if StatePlayer.IsCarry then
-					StatePlayer.IsCarry = false
-					StopAnimTask(PlayerPedId(), StatePlayer.LastDictAnim, StatePlayer.LastAnim, 3.0)
-					TriggerServerEvent("NSPx_HoldUp:DropCorpse", StatePlayer.CarryTarget)
-					StatePlayer.CarryTarget = 0
+					dropCurrentCorpseCarry()
 					return
 				end
 
@@ -416,6 +414,7 @@ AddEventHandler("NSPx_HoldUp:ClearCarry", function(TargetCarry)
 	StatePlayer.IsCarry = false
 	StopAnimTask(PlayerPedId(), StatePlayer.LastDictAnim, StatePlayer.LastAnim, 3.0)
 	StatePlayer.CarryTarget = 0
+	StatePlayer.CarryType = nil
 	resetCarryToxicState()
 end)
 
@@ -594,7 +593,7 @@ CreateThread(function()
 				StatePlayer.IsCarryEmote = false
 			end
 
-			if StatePlayer.IsCarry then
+			if StatePlayer.IsCarry and StatePlayer.CarryType == "corpse" then
 				local targetPlayerId = GetPlayerFromServerId(StatePlayer.CarryTarget)
 				if targetPlayerId == -1 then
 					dropCurrentCorpseCarry()
