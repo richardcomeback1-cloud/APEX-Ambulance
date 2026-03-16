@@ -202,6 +202,13 @@ local function addCase(source, data)
 
         eachAmbulance(function(playerId)
             TriggerClientEvent(scriptName .. ':UpdateCase', playerId, existingCase.caseid, existingCase.status, existingCase.text, existingCase.ac, existingCase.pressedCount)
+            TriggerClientEvent(scriptName .. ':RepeatCaseAlert', playerId, {
+                caseid = existingCase.caseid,
+                name = existingCase.name,
+                phone = existingCase.phone,
+                coords = existingCase.coords,
+                pressedCount = existingCase.pressedCount,
+            })
         end)
         TriggerClientEvent(scriptName .. ':UpdateId', source, existingCase.ac)
 
