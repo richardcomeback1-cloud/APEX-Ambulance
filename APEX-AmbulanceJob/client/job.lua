@@ -58,7 +58,10 @@ end
 
 local ReviveTargetMarker = {
 	playerId = nil,
-	enabled = false
+	enabled = false,
+	showHeadMarker = true,
+	showRangeMarker = false,
+	rangeRadius = 3.0
 }
 
 local function setReviveTargetMarker(playerId)
@@ -71,9 +74,17 @@ local function setReviveTargetMarker(playerId)
 	end
 end
 
+local function setReviveRangeMarker(radius)
+	ReviveTargetMarker.showRangeMarker = true
+	ReviveTargetMarker.rangeRadius = tonumber(radius) or 3.0
+end
+
 local function clearReviveTargetMarker()
 	ReviveTargetMarker.playerId = nil
 	ReviveTargetMarker.enabled = false
+	ReviveTargetMarker.showHeadMarker = true
+	ReviveTargetMarker.showRangeMarker = false
+	ReviveTargetMarker.rangeRadius = 3.0
 end
 
 local function getNearbyDeadPlayersForRevive(maxDistance)
@@ -175,7 +186,8 @@ local function getBillingMenuConfig()
 		Heal = {
 			single = { label = 'ฉีดยาเดี่ยว', value = 500 },
 			mass = { label = 'ฉีดยาหมู่', value = 500 },
-		}
+		},
+		ReviveSelectRadius = 3.0
 	}
 
 	if not Config or not Config.BillingMenu then
@@ -189,7 +201,8 @@ local function getBillingMenuConfig()
 		Heal = {
 			single = (billing.Heal and billing.Heal.single) or defaults.Heal.single,
 			mass = (billing.Heal and billing.Heal.mass) or defaults.Heal.mass,
-		}
+		},
+		ReviveSelectRadius = tonumber(billing.ReviveSelectRadius) or defaults.ReviveSelectRadius
 	}
 end
 
@@ -338,6 +351,7 @@ local function OpenReviveTypeMenu()
 	AmbulanceMenuState.level = 'submenu'
 	AmbulanceMenuState.previousOpener = OpenMobileAmbulanceActionsMenu
 	local billing = getBillingMenuConfig()
+	local reviveRadius = tonumber(billing.ReviveSelectRadius) or 3.0
 	local elements = {}
 	for _, v in ipairs(billing.Revive) do
 		table.insert(elements, { label = string.format('%s - %s$', v.label, v.value), value = v.value })
@@ -349,7 +363,7 @@ local function OpenReviveTypeMenu()
 		elements = elements
 	}, function(data, menu)
 		local billAmount = tonumber(data.current.value) or 0
-		local deadPlayers = getNearbyDeadPlayersForRevive(3.0)
+		local deadPlayers = getNearbyDeadPlayersForRevive(reviveRadius)
 
 		if #deadPlayers == 0 then
 			pushNotify('ไม่พบผู้เล่นที่สลบอยู่ในระยะใกล้', 'error', 3000)
@@ -357,18 +371,34 @@ local function OpenReviveTypeMenu()
 			return
 		end
 
+		local targetElements = {
+			{ label = string.format('ทั้งหมดในระยะ %.1f เมตร', reviveRadius), value = 'all' }
+		}
+		for _, deadPlayer in ipairs(deadPlayers) do
+			table.insert(targetElements, deadPlayer)
+		end
+
 		AmbulanceMenuState.level = 'submenu'
-		setReviveTargetMarker(deadPlayers[1].value)
+		ReviveTargetMarker.showHeadMarker = false
+		setReviveRangeMarker(reviveRadius)
 
 		ESX.UI.Menu.Open('default', GetCurrentResourceName(), 'revive_target_menu', {
 			title = 'เลือกผู้เล่นที่จะชุบชีวิต',
 			align = 'top-right',
-			elements = deadPlayers
+			elements = targetElements
 		}, function(targetData, targetMenu)
-			local targetPlayer = tonumber(targetData.current.value)
-			if targetPlayer then
-				setReviveTargetMarker(targetPlayer)
-				doSingleRevive(targetPlayer, billAmount)
+			local selectedValue = targetData.current.value
+			if selectedValue == 'all' then
+				ReviveTargetMarker.showHeadMarker = false
+				setReviveTargetMarker(nil)
+				doMassRevive(reviveRadius, billAmount)
+			else
+				local targetPlayer = tonumber(selectedValue)
+				if targetPlayer then
+					ReviveTargetMarker.showHeadMarker = true
+					setReviveTargetMarker(targetPlayer)
+					doSingleRevive(targetPlayer, billAmount)
+				end
 			end
 			safeCloseMenu(targetMenu)
 			clearReviveTargetMarker()
@@ -379,35 +409,17 @@ local function OpenReviveTypeMenu()
 				AmbulanceMenuState.level = 'submenu'
 			end
 		end, function(changeData, _)
-			setReviveTargetMarker(tonumber(changeData.current.value))
+			if changeData.current.value == 'all' then
+				ReviveTargetMarker.showHeadMarker = false
+				setReviveTargetMarker(nil)
+			else
+				ReviveTargetMarker.showHeadMarker = true
+				setReviveTargetMarker(tonumber(changeData.current.value))
+			end
 		end)
 	end, function(_, menu)
 		safeCloseMenu(menu)
 		clearReviveTargetMarker()
-		if AmbulanceMenuState.open then
-			AmbulanceMenuState.level = 'main'
-		end
-	end)
-end
-
-local function OpenMassReviveTypeMenu()
-	AmbulanceMenuState.open = true
-	AmbulanceMenuState.level = 'submenu'
-	AmbulanceMenuState.previousOpener = OpenMobileAmbulanceActionsMenu
-	local billing = getBillingMenuConfig()
-	local elements = {}
-	for _, v in ipairs(billing.MassRevive) do
-		table.insert(elements, { label = string.format('%s - %s$', v.label, v.value), value = v.value })
-	end
-
-	ESX.UI.Menu.Open('default', GetCurrentResourceName(), 'mass_revive_type_menu', {
-		title = 'ชุบชีวิตหมู่',
-		align = 'top-right',
-		elements = elements
-	}, function(data, menu)
-		doMassRevive(5.0, tonumber(data.current.value) or 0)
-	end, function(_, menu)
-		safeCloseMenu(menu)
 		if AmbulanceMenuState.open then
 			AmbulanceMenuState.level = 'main'
 		end
@@ -450,7 +462,6 @@ function OpenMobileAmbulanceActionsMenu()
 	AmbulanceMenuState.previousOpener = nil
 	El = {
 		{ label = 'ชุบชีวิต', value = 'revive_menu' },
-		{ label = 'ชุบชีวิตหมู่', value = 'revive_group_menu' },
 		{ label = 'ฉีดยา', value = 'heal_menu' },
 		{ label = 'ตรวจบัตรประชาชน', value = 'identity_card' },
 		{ label = 'นำคนไข้ขึนรถ', value = 'put_in_vehicle' },
@@ -475,8 +486,6 @@ function OpenMobileAmbulanceActionsMenu()
 			return
 		elseif data.current.value == 'revive_menu' then
 			OpenReviveTypeMenu()
-		elseif data.current.value == 'revive_group_menu' then
-			OpenMassReviveTypeMenu()
 		elseif data.current.value == 'heal_menu' then
 			OpenHealTypeMenu()
 		elseif data.current.value == 'identity_card' then
@@ -554,7 +563,17 @@ end
 
 CreateThread(function()
 	while true do
-		if ReviveTargetMarker.enabled and ReviveTargetMarker.playerId then
+		local isRangeVisible = ReviveTargetMarker.showRangeMarker and (ReviveTargetMarker.rangeRadius or 0.0) > 0.0
+		local isHeadVisible = ReviveTargetMarker.enabled and ReviveTargetMarker.showHeadMarker and ReviveTargetMarker.playerId
+
+		if isRangeVisible then
+			local playerCoords = GetEntityCoords(PlayerPedId())
+			local radius = ReviveTargetMarker.rangeRadius or 3.0
+			DrawMarker(1, playerCoords.x, playerCoords.y, playerCoords.z - 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+				radius * 2.0, radius * 2.0, 0.25, 80, 255, 80, 90, false, false, 2, false, nil, nil, false)
+		end
+
+		if isHeadVisible then
 			local targetPed = GetPlayerPed(ReviveTargetMarker.playerId)
 			if targetPed and targetPed ~= 0 and DoesEntityExist(targetPed) then
 				local boneIndex = GetPedBoneIndex(targetPed, 0x796e)
@@ -562,8 +581,11 @@ CreateThread(function()
 				DrawMarker(2, markerCoords.x, markerCoords.y, markerCoords.z + 0.15, 0.0, 0.0, 0.0, 0.0, 180.0, 0.0,
 					0.18, 0.18, 0.18, 80, 255, 80, 190, false, true, 2, false, nil, nil, false)
 			else
-				clearReviveTargetMarker()
+				setReviveTargetMarker(nil)
 			end
+		end
+
+		if isRangeVisible or isHeadVisible then
 			Wait(0)
 		else
 			Wait(250)
