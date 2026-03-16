@@ -106,6 +106,26 @@ local function getNearbyDeadPlayersForRevive(maxDistance)
 	return elements
 end
 
+
+local function getNearbyAlivePlayersForHeal(maxDistance)
+	local players = ESX.Game.GetPlayersInArea(GetEntityCoords(PlayerPedId()), maxDistance or 3.0)
+	local elements = {}
+
+	for _, playerId in ipairs(players) do
+		if playerId ~= PlayerId() then
+			local targetPed = GetPlayerPed(playerId)
+			if targetPed and DoesEntityExist(targetPed) and GetEntityHealth(targetPed) > 0 then
+				table.insert(elements, {
+					label = string.format('%s | ID : %s', GetPlayerName(playerId), GetPlayerServerId(playerId)),
+					value = playerId
+				})
+			end
+		end
+	end
+
+	return elements
+end
+
 local function getClosestPlayerWithin(maxDistance)
 	local closestPlayer, closestDistance = ESX.Game.GetClosestPlayer()
 	if closestPlayer == -1 or closestDistance > maxDistance then
@@ -187,7 +207,8 @@ local function getBillingMenuConfig()
 			single = { label = 'ฉีดยาเดี่ยว', value = 500 },
 			mass = { label = 'ฉีดยาหมู่', value = 500 },
 		},
-		ReviveSelectRadius = 3.0
+		ReviveSelectRadius = 3.0,
+		HealSelectRadius = 3.0
 	}
 
 	if not Config or not Config.BillingMenu then
@@ -202,7 +223,8 @@ local function getBillingMenuConfig()
 			single = (billing.Heal and billing.Heal.single) or defaults.Heal.single,
 			mass = (billing.Heal and billing.Heal.mass) or defaults.Heal.mass,
 		},
-		ReviveSelectRadius = tonumber(billing.ReviveSelectRadius) or defaults.ReviveSelectRadius
+		ReviveSelectRadius = tonumber(billing.ReviveSelectRadius) or defaults.ReviveSelectRadius,
+		HealSelectRadius = tonumber(billing.HealSelectRadius) or defaults.HealSelectRadius
 	}
 end
 
@@ -431,6 +453,7 @@ local function OpenHealTypeMenu()
 	AmbulanceMenuState.level = 'submenu'
 	AmbulanceMenuState.previousOpener = OpenMobileAmbulanceActionsMenu
 	local billing = getBillingMenuConfig()
+	local healRadius = tonumber(billing.HealSelectRadius) or 3.0
 	local elements = {
 		{ label = string.format('%s - %s$', billing.Heal.single.label, billing.Heal.single.value), value = 'single', amount = billing.Heal.single.value },
 		{ label = string.format('%s - %s$', billing.Heal.mass.label, billing.Heal.mass.value), value = 'mass', amount = billing.Heal.mass.value },
@@ -441,14 +464,64 @@ local function OpenHealTypeMenu()
 		align = 'top-right',
 		elements = elements
 	}, function(data, menu)
-		if data.current.value == 'single' then
-			local closestPlayer = getClosestPlayerWithin(3.0)
-			if closestPlayer then doSingleHeal(closestPlayer, tonumber(data.current.amount) or 0) end
-		else
-			doMassHeal(5.0, tonumber(data.current.amount) or 0)
+		local billAmount = tonumber(data.current.amount) or 0
+		local alivePlayers = getNearbyAlivePlayersForHeal(healRadius)
+
+		if #alivePlayers == 0 then
+			pushNotify('ไม่พบผู้เล่นที่ยังมีชีวิตอยู่ในระยะใกล้', 'error', 3000)
+			clearReviveTargetMarker()
+			return
 		end
+
+		local targetElements = {
+			{ label = string.format('ทั้งหมดในระยะ %.1f เมตร', healRadius), value = 'all' }
+		}
+		for _, alivePlayer in ipairs(alivePlayers) do
+			table.insert(targetElements, alivePlayer)
+		end
+
+		AmbulanceMenuState.level = 'submenu'
+		ReviveTargetMarker.showHeadMarker = false
+		setReviveRangeMarker(healRadius)
+
+		ESX.UI.Menu.Open('default', GetCurrentResourceName(), 'heal_target_menu', {
+			title = 'เลือกผู้เล่นที่จะฉีดยา',
+			align = 'top-right',
+			elements = targetElements
+		}, function(targetData, targetMenu)
+			local selectedValue = targetData.current.value
+			if selectedValue == 'all' then
+				ReviveTargetMarker.showHeadMarker = false
+				setReviveTargetMarker(nil)
+				doMassHeal(healRadius, billAmount)
+			else
+				local targetPlayer = tonumber(selectedValue)
+				if targetPlayer then
+					ReviveTargetMarker.showHeadMarker = true
+					setReviveTargetMarker(targetPlayer)
+					doSingleHeal(targetPlayer, billAmount)
+				end
+			end
+			safeCloseMenu(targetMenu)
+			clearReviveTargetMarker()
+		end, function(_, targetMenu)
+			safeCloseMenu(targetMenu)
+			clearReviveTargetMarker()
+			if AmbulanceMenuState.open then
+				AmbulanceMenuState.level = 'submenu'
+			end
+		end, function(changeData, _)
+			if changeData.current.value == 'all' then
+				ReviveTargetMarker.showHeadMarker = false
+				setReviveTargetMarker(nil)
+			else
+				ReviveTargetMarker.showHeadMarker = true
+				setReviveTargetMarker(tonumber(changeData.current.value))
+			end
+		end)
 	end, function(_, menu)
 		safeCloseMenu(menu)
+		clearReviveTargetMarker()
 		if AmbulanceMenuState.open then
 			AmbulanceMenuState.level = 'main'
 		end
