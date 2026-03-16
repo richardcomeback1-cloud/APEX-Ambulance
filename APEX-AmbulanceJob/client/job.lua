@@ -107,6 +107,20 @@ local function getNearbyDeadPlayersForRevive(maxDistance)
 end
 
 
+local function isPedHealable(targetPed)
+	if not targetPed or not DoesEntityExist(targetPed) then
+		return false
+	end
+
+	local health = GetEntityHealth(targetPed)
+	local maxHealth = GetEntityMaxHealth(targetPed)
+	if maxHealth <= 0 then
+		maxHealth = 200
+	end
+
+	return health > 0 and health < maxHealth
+end
+
 local function getNearbyAlivePlayersForHeal(maxDistance)
 	local players = ESX.Game.GetPlayersInArea(GetEntityCoords(PlayerPedId()), maxDistance or 3.0)
 	local elements = {}
@@ -114,7 +128,7 @@ local function getNearbyAlivePlayersForHeal(maxDistance)
 	for _, playerId in ipairs(players) do
 		if playerId ~= PlayerId() then
 			local targetPed = GetPlayerPed(playerId)
-			if targetPed and DoesEntityExist(targetPed) and GetEntityHealth(targetPed) > 0 then
+			if targetPed and isPedHealable(targetPed) then
 				table.insert(elements, {
 					label = string.format('%s | ID : %s', GetPlayerName(playerId), GetPlayerServerId(playerId)),
 					value = playerId
@@ -125,6 +139,7 @@ local function getNearbyAlivePlayersForHeal(maxDistance)
 
 	return elements
 end
+
 
 local function getClosestPlayerWithin(maxDistance)
 	local closestPlayer, closestDistance = ESX.Game.GetClosestPlayer()
@@ -332,7 +347,10 @@ end
 local function doSingleHeal(targetPlayer, billAmount)
 	withMedicActionItem('heal', function(healItem)
 		local targetPed = GetPlayerPed(targetPlayer)
-		if GetEntityHealth(targetPed) <= 0 then return end
+		if not isPedHealable(targetPed) then
+			pushNotify('ผู้เล่นนี้เลือดเต็มแล้ว ไม่สามารถฉีดยาได้', 'error', 3000)
+			return
+		end
 
 		runHealAnimation(function()
 			TriggerServerEvent('esx_ambulancejob:removeItem', healItem)
@@ -349,12 +367,12 @@ local function doMassHeal(radius, billAmount)
 		for _, playerId in ipairs(nearbyPlayers) do
 			if playerId ~= PlayerId() then
 				local ped = GetPlayerPed(playerId)
-				if GetEntityHealth(ped) > 0 then table.insert(aliveTargets, playerId) end
+				if isPedHealable(ped) then table.insert(aliveTargets, playerId) end
 			end
 		end
 
 		if #aliveTargets == 0 then
-			pushNotify('No player nearby.', 'error', 3000)
+			pushNotify('ไม่พบผู้เล่นที่ต้องฉีดยาในระยะ (ผู้เล่นเลือดเต็มจะไม่ถูกฉีด)', 'error', 3000)
 			return
 		end
 
