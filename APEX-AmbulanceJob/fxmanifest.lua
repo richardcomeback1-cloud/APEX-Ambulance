@@ -39,6 +39,7 @@ dependencies {
     'ox_lib',
     'oxmysql',
     'APEX-Billing',
+    'APEX-AllNotify',
 }
 
 ui_page "html/index.html"

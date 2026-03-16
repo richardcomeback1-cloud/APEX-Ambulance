@@ -46,14 +46,19 @@ function OpenAmbulanceActionsMenu()
 end
 
 
+
+local function pushNotify(text, notifyType, notifyTime)
+	exports['APEX-AllNotify']:AddNotify({
+		type = notifyType or 'info',
+		text = text,
+		time = notifyTime or 3000
+	})
+end
+
 local function getClosestPlayerWithin(maxDistance)
 	local closestPlayer, closestDistance = ESX.Game.GetClosestPlayer()
 	if closestPlayer == -1 or closestDistance > maxDistance then
-		exports['pNotify']:SendNotification({
-			text = 'No Player Nearby.',
-			type = 'error',
-			timeout = 3000
-		})
+		pushNotify('No Player Nearby.', 'error', 3000)
 		return nil
 	end
 
@@ -80,12 +85,12 @@ end
 local function canUseMedicActionItem(actionType)
 	local itemName, itemLabel = getMedicActionItem(actionType)
 	if not itemName then
-		exports['pNotify']:SendNotification({ text = ('Missing Config.RequiredMedicItems.%s.name'):format(tostring(actionType)), type = 'error', timeout = 4000 })
+		pushNotify(('Missing Config.RequiredMedicItems.%s.name'):format(tostring(actionType)), 'error', 4000)
 		return false, nil
 	end
 
 	if _CHKHASITEM(itemName) <= 0 then
-		exports['pNotify']:SendNotification({ text = ('You do not have %s.'):format(itemLabel), type = 'error', timeout = 3000 })
+		pushNotify(('You do not have %s.'):format(itemLabel), 'error', 3000)
 		return false, itemName
 	end
 	return true, itemName
@@ -94,13 +99,13 @@ end
 local function withMedicActionItem(actionType, onSuccess)
 	local itemName, itemLabel = getMedicActionItem(actionType)
 	if not itemName then
-		exports['pNotify']:SendNotification({ text = ('Missing Config.RequiredMedicItems.%s.name'):format(tostring(actionType)), type = 'error', timeout = 4000 })
+		pushNotify(('Missing Config.RequiredMedicItems.%s.name'):format(tostring(actionType)), 'error', 4000)
 		return
 	end
 
 	ESX.TriggerServerCallback('esx_ambulancejob:hasItem', function(hasItem)
 		if not hasItem then
-			exports['pNotify']:SendNotification({ text = ('You do not have %s.'):format(itemLabel), type = 'error', timeout = 3000 })
+			pushNotify(('You do not have %s.'):format(itemLabel), 'error', 3000)
 			return
 		end
 
@@ -235,7 +240,7 @@ local function doMassRevive(radius, billAmount)
 		end
 
 		if #deadTargets == 0 then
-			exports['pNotify']:SendNotification({ text = 'No dead player nearby.', type = 'error', timeout = 3000 })
+			pushNotify('No dead player nearby.', 'error', 3000)
 			return
 		end
 
@@ -274,7 +279,7 @@ local function doMassHeal(radius, billAmount)
 		end
 
 		if #aliveTargets == 0 then
-			exports['pNotify']:SendNotification({ text = 'No player nearby.', type = 'error', timeout = 3000 })
+			pushNotify('No player nearby.', 'error', 3000)
 			return
 		end
 
@@ -1240,13 +1245,7 @@ function OpenCreateBilling(player)
 					return
 				end
 				TriggerServerEvent('esx_billing:sendBill', GetPlayerServerId(player), 'society_ambulance', tonumber(data.current.value), 'Fine: Ambulance')
-				TriggerEvent("pNotify:SendNotification", {
-					text = 'Send Fine To Player Id ' .. GetPlayerServerId(player),
-					type = "success",
-					timeout = 3000,
-					layout = "bottomCenter",
-					queue = "global"
-				})
+				pushNotify('Send Fine To Player Id ' .. GetPlayerServerId(player), 'success', 3000)
 				safeCloseMenu(menu)
 			end
 		end, function(data, menu)
