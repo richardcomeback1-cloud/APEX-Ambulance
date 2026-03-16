@@ -55,6 +55,46 @@ local function pushNotify(text, notifyType, notifyTime)
 	})
 end
 
+
+local ReviveTargetMarker = {
+	playerId = nil,
+	enabled = false
+}
+
+local function setReviveTargetMarker(playerId)
+	if playerId and playerId ~= -1 then
+		ReviveTargetMarker.playerId = playerId
+		ReviveTargetMarker.enabled = true
+	else
+		ReviveTargetMarker.playerId = nil
+		ReviveTargetMarker.enabled = false
+	end
+end
+
+local function clearReviveTargetMarker()
+	ReviveTargetMarker.playerId = nil
+	ReviveTargetMarker.enabled = false
+end
+
+local function getNearbyDeadPlayersForRevive(maxDistance)
+	local players = ESX.Game.GetPlayersInArea(GetEntityCoords(PlayerPedId()), maxDistance or 3.0)
+	local elements = {}
+
+	for _, playerId in ipairs(players) do
+		if playerId ~= PlayerId() then
+			local targetPed = GetPlayerPed(playerId)
+			if targetPed and DoesEntityExist(targetPed) and IsPedDeadOrDying(targetPed, true) then
+				table.insert(elements, {
+					label = string.format('%s | ID : %s', GetPlayerName(playerId), GetPlayerServerId(playerId)),
+					value = playerId
+				})
+			end
+		end
+	end
+
+	return elements
+end
+
 local function getClosestPlayerWithin(maxDistance)
 	local closestPlayer, closestDistance = ESX.Game.GetClosestPlayer()
 	if closestPlayer == -1 or closestDistance > maxDistance then
@@ -308,10 +348,42 @@ local function OpenReviveTypeMenu()
 		align = 'top-right',
 		elements = elements
 	}, function(data, menu)
-		local closestPlayer = getClosestPlayerWithin(3.0)
-		if closestPlayer then doSingleRevive(closestPlayer, tonumber(data.current.value) or 0) end
+		local billAmount = tonumber(data.current.value) or 0
+		local deadPlayers = getNearbyDeadPlayersForRevive(3.0)
+
+		if #deadPlayers == 0 then
+			pushNotify('ไม่พบผู้เล่นที่สลบอยู่ในระยะใกล้', 'error', 3000)
+			clearReviveTargetMarker()
+			return
+		end
+
+		AmbulanceMenuState.level = 'submenu'
+		setReviveTargetMarker(deadPlayers[1].value)
+
+		ESX.UI.Menu.Open('default', GetCurrentResourceName(), 'revive_target_menu', {
+			title = 'เลือกผู้เล่นที่จะชุบชีวิต',
+			align = 'top-right',
+			elements = deadPlayers
+		}, function(targetData, targetMenu)
+			local targetPlayer = tonumber(targetData.current.value)
+			if targetPlayer then
+				setReviveTargetMarker(targetPlayer)
+				doSingleRevive(targetPlayer, billAmount)
+			end
+			safeCloseMenu(targetMenu)
+			clearReviveTargetMarker()
+		end, function(_, targetMenu)
+			safeCloseMenu(targetMenu)
+			clearReviveTargetMarker()
+			if AmbulanceMenuState.open then
+				AmbulanceMenuState.level = 'submenu'
+			end
+		end, function(changeData, _)
+			setReviveTargetMarker(tonumber(changeData.current.value))
+		end)
 	end, function(_, menu)
 		safeCloseMenu(menu)
+		clearReviveTargetMarker()
 		if AmbulanceMenuState.open then
 			AmbulanceMenuState.level = 'main'
 		end
@@ -478,6 +550,26 @@ function FastTravel(coords, heading)
 		end
 	end)
 end
+
+
+CreateThread(function()
+	while true do
+		if ReviveTargetMarker.enabled and ReviveTargetMarker.playerId then
+			local targetPed = GetPlayerPed(ReviveTargetMarker.playerId)
+			if targetPed and targetPed ~= 0 and DoesEntityExist(targetPed) then
+				local boneIndex = GetPedBoneIndex(targetPed, 0x796e)
+				local markerCoords = GetPedBoneCoords(targetPed, boneIndex, 0.0, 0.0, 0.25)
+				DrawMarker(2, markerCoords.x, markerCoords.y, markerCoords.z + 0.15, 0.0, 0.0, 0.0, 0.0, 180.0, 0.0,
+					0.18, 0.18, 0.18, 80, 255, 80, 190, false, true, 2, false, nil, nil, false)
+			else
+				clearReviveTargetMarker()
+			end
+			Wait(0)
+		else
+			Wait(250)
+		end
+	end
+end)
 
 -- Draw markers & Marker logic
 Citizen.CreateThread(function()
