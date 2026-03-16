@@ -173,6 +173,33 @@ function ScriptWork()
 		return inputString:gsub("<br>", "")
 	end
 
+
+	RegisterNetEvent(scriptName..':RepeatCaseAlert')
+	AddEventHandler(scriptName..':RepeatCaseAlert', function(caseData)
+		if ESX.GetPlayerData().job.name ~= "ambulance" then
+			return
+		end
+
+		if type(caseData) ~= 'table' then
+			return
+		end
+
+		local pressCount = tonumber(caseData.pressedCount) or 1
+		local previewText = "คนสลบกดเรียกเคสซ้ำ"
+		if caseData.name and caseData.phone then
+			previewText = ("%s (%s) กดเรียกเคสซ้ำ x%s"):format(caseData.name, caseData.phone, pressCount)
+		end
+
+		TriggerEvent("APEX-AllNotify:AddAlert",{
+			job = "ambulance",
+			text = previewText,
+			waypoint = true,
+			time = 5,
+			coords = caseData.coords,
+			case = caseData.caseid
+		})
+	end)
+
 	RegisterNetEvent(scriptName..':AddMedicCase')
 	AddEventHandler(scriptName..':AddMedicCase', function(newdata,newcase)
 		if ESX.GetPlayerData().job.name == "ambulance" then

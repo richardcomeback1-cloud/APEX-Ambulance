@@ -35,6 +35,15 @@ local Status_Toxic = 0
 
 PlayerListId = {}
 
+
+local function pushNotify(text, notifyType, notifyTime)
+	exports['APEX-AllNotify']:AddNotify({
+		type = notifyType or 'info',
+		text = text,
+		time = notifyTime or 3000
+	})
+end
+
 local function resetCarryToxicState()
 	if Next_hide > GetGameTimer() or Status_Toxic == 4 then
 		SendNUIMessage({
@@ -130,6 +139,15 @@ local function startDeadCarryShortcut()
 	end)
 
 	if not targetPlayer then
+		local aliveTarget = getNearestPlayerInArea(2.0, function(targetPed)
+			return not IsPedDeadOrDying(targetPed, true)
+		end)
+
+		if aliveTarget then
+			pushNotify('ผู้เล่นยังมีชีวิตอยู่ ไม่พบคนสลบ', 'error', 3000)
+		else
+			pushNotify('ไม่พบผู้เล่นที่ต้องการความช่วยเหลือในระยะใกล้', 'error', 3000)
+		end
 		return
 	end
 
@@ -153,6 +171,7 @@ end
 
 local function startAliveCarryShortcut()
 	if not canUseAliveCarryMode() then
+		pushNotify('อาชีพของคุณไม่สามารถอุ้มผู้เล่นที่ยังมีชีวิตได้', 'error', 3000)
 		return
 	end
 
@@ -166,6 +185,7 @@ local function startAliveCarryShortcut()
 	end)
 
 	if not targetPlayer then
+		pushNotify('ไม่พบผู้เล่นที่ยังมีชีวิตอยู่ในระยะใกล้', 'error', 3000)
 		return
 	end
 
@@ -294,6 +314,9 @@ function OpenActionMenuInteraction(target)
 									0, false, false, false)
 								StatePlayer.LastAnim = "fin_c2_mcs_1_camman"
 								StatePlayer.LastDictAnim = "missfinale_c2mcs_1"
+							else
+								pushNotify('ผู้เล่นยังมีชีวิตอยู่ ไม่พบคนสลบ', 'error', 3000)
+								PlayerListId[data2.current.value] = nil
 							end
 						end
 					else

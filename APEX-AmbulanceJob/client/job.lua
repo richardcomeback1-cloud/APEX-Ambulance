@@ -46,14 +46,105 @@ function OpenAmbulanceActionsMenu()
 end
 
 
+
+local function pushNotify(text, notifyType, notifyTime)
+	exports['APEX-AllNotify']:AddNotify({
+		type = notifyType or 'info',
+		text = text,
+		time = notifyTime or 3000
+	})
+end
+
+
+local ReviveTargetMarker = {
+	playerId = nil,
+	enabled = false,
+	showHeadMarker = true,
+	showRangeMarker = false,
+	rangeRadius = 3.0
+}
+
+local function setReviveTargetMarker(playerId)
+	if playerId and playerId ~= -1 then
+		ReviveTargetMarker.playerId = playerId
+		ReviveTargetMarker.enabled = true
+	else
+		ReviveTargetMarker.playerId = nil
+		ReviveTargetMarker.enabled = false
+	end
+end
+
+local function setReviveRangeMarker(radius)
+	ReviveTargetMarker.showRangeMarker = true
+	ReviveTargetMarker.rangeRadius = tonumber(radius) or 3.0
+end
+
+local function clearReviveTargetMarker()
+	ReviveTargetMarker.playerId = nil
+	ReviveTargetMarker.enabled = false
+	ReviveTargetMarker.showHeadMarker = true
+	ReviveTargetMarker.showRangeMarker = false
+	ReviveTargetMarker.rangeRadius = 3.0
+end
+
+local function getNearbyDeadPlayersForRevive(maxDistance)
+	local players = ESX.Game.GetPlayersInArea(GetEntityCoords(PlayerPedId()), maxDistance or 3.0)
+	local elements = {}
+
+	for _, playerId in ipairs(players) do
+		if playerId ~= PlayerId() then
+			local targetPed = GetPlayerPed(playerId)
+			if targetPed and DoesEntityExist(targetPed) and IsPedDeadOrDying(targetPed, true) then
+				table.insert(elements, {
+					label = string.format('%s | ID : %s', GetPlayerName(playerId), GetPlayerServerId(playerId)),
+					value = playerId
+				})
+			end
+		end
+	end
+
+	return elements
+end
+
+
+local function isPedHealable(targetPed)
+	if not targetPed or not DoesEntityExist(targetPed) then
+		return false
+	end
+
+	local health = GetEntityHealth(targetPed)
+	local maxHealth = GetEntityMaxHealth(targetPed)
+	if maxHealth <= 0 then
+		maxHealth = 200
+	end
+
+	return health > 0 and health < maxHealth
+end
+
+local function getNearbyAlivePlayersForHeal(maxDistance)
+	local players = ESX.Game.GetPlayersInArea(GetEntityCoords(PlayerPedId()), maxDistance or 3.0)
+	local elements = {}
+
+	for _, playerId in ipairs(players) do
+		if playerId ~= PlayerId() then
+			local targetPed = GetPlayerPed(playerId)
+			if targetPed and isPedHealable(targetPed) then
+				table.insert(elements, {
+					label = string.format('%s | ID : %s', GetPlayerName(playerId), GetPlayerServerId(playerId)),
+					value = playerId
+				})
+			end
+		end
+	end
+
+	return elements
+end
+
+
 local function getClosestPlayerWithin(maxDistance)
 	local closestPlayer, closestDistance = ESX.Game.GetClosestPlayer()
 	if closestPlayer == -1 or closestDistance > maxDistance then
-		exports['pNotify']:SendNotification({
-			text = 'No Player Nearby.',
-			type = 'error',
-			timeout = 3000
-		})
+		pushNotify('No Player Nearby.', 'error', 3000)
 		return nil
 	end
 
@@ -80,12 +171,12 @@ end
 local function canUseMedicActionItem(actionType)
 	local itemName, itemLabel = getMedicActionItem(actionType)
 	if not itemName then
-		exports['pNotify']:SendNotification({ text = ('Missing Config.RequiredMedicItems.%s.name'):format(tostring(actionType)), type = 'error', timeout = 4000 })
+		pushNotify(('Missing Config.RequiredMedicItems.%s.name'):format(tostring(actionType)), 'error', 4000)
 		return false, nil
 	end
 
 	if _CHKHASITEM(itemName) <= 0 then
-		exports['pNotify']:SendNotification({ text = ('You do not have %s.'):format(itemLabel), type = 'error', timeout = 3000 })
+		pushNotify(('You do not have %s.'):format(itemLabel), 'error', 3000)
 		return false, itemName
 	end
 	return true, itemName
@@ -94,13 +185,13 @@ end
 local function withMedicActionItem(actionType, onSuccess)
 	local itemName, itemLabel = getMedicActionItem(actionType)
 	if not itemName then
-		exports['pNotify']:SendNotification({ text = ('Missing Config.RequiredMedicItems.%s.name'):format(tostring(actionType)), type = 'error', timeout = 4000 })
+		pushNotify(('Missing Config.RequiredMedicItems.%s.name'):format(tostring(actionType)), 'error', 4000)
 		return
 	end
 
 	ESX.TriggerServerCallback('esx_ambulancejob:hasItem', function(hasItem)
 		if not hasItem then
-			exports['pNotify']:SendNotification({ text = ('You do not have %s.'):format(itemLabel), type = 'error', timeout = 3000 })
+			pushNotify(('You do not have %s.'):format(itemLabel), 'error', 3000)
 			return
 		end
 
@@ -130,7 +221,9 @@ local function getBillingMenuConfig()
 		Heal = {
 			single = { label = 'ฉีดยาเดี่ยว', value = 500 },
 			mass = { label = 'ฉีดยาหมู่', value = 500 },
-		}
+		},
+		ReviveSelectRadius = 3.0,
+		HealSelectRadius = 3.0
 	}
 
 	if not Config or not Config.BillingMenu then
@@ -144,7 +237,9 @@ local function getBillingMenuConfig()
 		Heal = {
 			single = (billing.Heal and billing.Heal.single) or defaults.Heal.single,
 			mass = (billing.Heal and billing.Heal.mass) or defaults.Heal.mass,
-		}
+		},
+		ReviveSelectRadius = tonumber(billing.ReviveSelectRadius) or defaults.ReviveSelectRadius,
+		HealSelectRadius = tonumber(billing.HealSelectRadius) or defaults.HealSelectRadius
 	}
 end
 
@@ -235,7 +330,7 @@ local function doMassRevive(radius, billAmount)
 		end
 
 		if #deadTargets == 0 then
-			exports['pNotify']:SendNotification({ text = 'No dead player nearby.', type = 'error', timeout = 3000 })
+			pushNotify('No dead player nearby.', 'error', 3000)
 			return
 		end
 
@@ -252,7 +347,10 @@ end
 local function doSingleHeal(targetPlayer, billAmount)
 	withMedicActionItem('heal', function(healItem)
 		local targetPed = GetPlayerPed(targetPlayer)
-		if GetEntityHealth(targetPed) <= 0 then return end
+		if not isPedHealable(targetPed) then
+			pushNotify('ผู้เล่นนี้เลือดเต็มแล้ว ไม่สามารถฉีดยาได้', 'error', 3000)
+			return
+		end
 
 		runHealAnimation(function()
 			TriggerServerEvent('esx_ambulancejob:removeItem', healItem)
@@ -269,12 +367,12 @@ local function doMassHeal(radius, billAmount)
 		for _, playerId in ipairs(nearbyPlayers) do
 			if playerId ~= PlayerId() then
 				local ped = GetPlayerPed(playerId)
-				if GetEntityHealth(ped) > 0 then table.insert(aliveTargets, playerId) end
+				if isPedHealable(ped) then table.insert(aliveTargets, playerId) end
 			end
 		end
 
 		if #aliveTargets == 0 then
-			exports['pNotify']:SendNotification({ text = 'No player nearby.', type = 'error', timeout = 3000 })
+			pushNotify('ไม่พบผู้เล่นที่ต้องฉีดยาในระยะ (ผู้เล่นเลือดเต็มจะไม่ถูกฉีด)', 'error', 3000)
 			return
 		end
 
@@ -293,6 +391,7 @@ local function OpenReviveTypeMenu()
 	AmbulanceMenuState.level = 'submenu'
 	AmbulanceMenuState.previousOpener = OpenMobileAmbulanceActionsMenu
 	local billing = getBillingMenuConfig()
+	local reviveRadius = tonumber(billing.ReviveSelectRadius) or 3.0
 	local elements = {}
 	for _, v in ipairs(billing.Revive) do
 		table.insert(elements, { label = string.format('%s - %s$', v.label, v.value), value = v.value })
@@ -303,34 +402,64 @@ local function OpenReviveTypeMenu()
 		align = 'top-right',
 		elements = elements
 	}, function(data, menu)
-		local closestPlayer = getClosestPlayerWithin(3.0)
-		if closestPlayer then doSingleRevive(closestPlayer, tonumber(data.current.value) or 0) end
-	end, function(_, menu)
-		safeCloseMenu(menu)
-		if AmbulanceMenuState.open then
-			AmbulanceMenuState.level = 'main'
+		local billAmount = tonumber(data.current.value) or 0
+		local deadPlayers = getNearbyDeadPlayersForRevive(reviveRadius)
+
+		if #deadPlayers == 0 then
+			pushNotify('ไม่พบผู้เล่นที่สลบอยู่ในระยะใกล้', 'error', 3000)
+			clearReviveTargetMarker()
+			return
 		end
-	end)
-end
 
-local function OpenMassReviveTypeMenu()
-	AmbulanceMenuState.open = true
-	AmbulanceMenuState.level = 'submenu'
-	AmbulanceMenuState.previousOpener = OpenMobileAmbulanceActionsMenu
-	local billing = getBillingMenuConfig()
-	local elements = {}
-	for _, v in ipairs(billing.MassRevive) do
-		table.insert(elements, { label = string.format('%s - %s$', v.label, v.value), value = v.value })
-	end
+		local targetElements = {
+			{ label = string.format('ทั้งหมดในระยะ %.1f เมตร', reviveRadius), value = 'all' }
+		}
+		for _, deadPlayer in ipairs(deadPlayers) do
+			table.insert(targetElements, deadPlayer)
+		end
 
-	ESX.UI.Menu.Open('default', GetCurrentResourceName(), 'mass_revive_type_menu', {
-		title = 'ชุบชีวิตหมู่',
-		align = 'top-right',
-		elements = elements
-	}, function(data, menu)
-		doMassRevive(5.0, tonumber(data.current.value) or 0)
+		AmbulanceMenuState.level = 'submenu'
+		ReviveTargetMarker.showHeadMarker = false
+		setReviveRangeMarker(reviveRadius)
+
+		ESX.UI.Menu.Open('default', GetCurrentResourceName(), 'revive_target_menu', {
+			title = 'เลือกผู้เล่นที่จะชุบชีวิต',
+			align = 'top-right',
+			elements = targetElements
+		}, function(targetData, targetMenu)
+			local selectedValue = targetData.current.value
+			if selectedValue == 'all' then
+				ReviveTargetMarker.showHeadMarker = false
+				setReviveTargetMarker(nil)
+				doMassRevive(reviveRadius, billAmount)
+			else
+				local targetPlayer = tonumber(selectedValue)
+				if targetPlayer then
+					ReviveTargetMarker.showHeadMarker = true
+					setReviveTargetMarker(targetPlayer)
+					doSingleRevive(targetPlayer, billAmount)
+				end
+			end
+			safeCloseMenu(targetMenu)
+			clearReviveTargetMarker()
+		end, function(_, targetMenu)
+			safeCloseMenu(targetMenu)
+			clearReviveTargetMarker()
+			if AmbulanceMenuState.open then
+				AmbulanceMenuState.level = 'submenu'
+			end
+		end, function(changeData, _)
+			if changeData.current.value == 'all' then
+				ReviveTargetMarker.showHeadMarker = false
+				setReviveTargetMarker(nil)
+			else
+				ReviveTargetMarker.showHeadMarker = true
+				setReviveTargetMarker(tonumber(changeData.current.value))
+			end
+		end)
 	end, function(_, menu)
 		safeCloseMenu(menu)
+		clearReviveTargetMarker()
 		if AmbulanceMenuState.open then
 			AmbulanceMenuState.level = 'main'
 		end
@@ -342,6 +471,7 @@ local function OpenHealTypeMenu()
 	AmbulanceMenuState.level = 'submenu'
 	AmbulanceMenuState.previousOpener = OpenMobileAmbulanceActionsMenu
 	local billing = getBillingMenuConfig()
+	local healRadius = tonumber(billing.HealSelectRadius) or 3.0
 	local elements = {
 		{ label = string.format('%s - %s$', billing.Heal.single.label, billing.Heal.single.value), value = 'single', amount = billing.Heal.single.value },
 		{ label = string.format('%s - %s$', billing.Heal.mass.label, billing.Heal.mass.value), value = 'mass', amount = billing.Heal.mass.value },
@@ -352,14 +482,64 @@ local function OpenHealTypeMenu()
 		align = 'top-right',
 		elements = elements
 	}, function(data, menu)
-		if data.current.value == 'single' then
-			local closestPlayer = getClosestPlayerWithin(3.0)
-			if closestPlayer then doSingleHeal(closestPlayer, tonumber(data.current.amount) or 0) end
-		else
-			doMassHeal(5.0, tonumber(data.current.amount) or 0)
+		local billAmount = tonumber(data.current.amount) or 0
+		local alivePlayers = getNearbyAlivePlayersForHeal(healRadius)
+
+		if #alivePlayers == 0 then
+			pushNotify('ไม่พบผู้เล่นที่ยังมีชีวิตอยู่ในระยะใกล้', 'error', 3000)
+			clearReviveTargetMarker()
+			return
 		end
+
+		local targetElements = {
+			{ label = string.format('ทั้งหมดในระยะ %.1f เมตร', healRadius), value = 'all' }
+		}
+		for _, alivePlayer in ipairs(alivePlayers) do
+			table.insert(targetElements, alivePlayer)
+		end
+
+		AmbulanceMenuState.level = 'submenu'
+		ReviveTargetMarker.showHeadMarker = false
+		setReviveRangeMarker(healRadius)
+
+		ESX.UI.Menu.Open('default', GetCurrentResourceName(), 'heal_target_menu', {
+			title = 'เลือกผู้เล่นที่จะฉีดยา',
+			align = 'top-right',
+			elements = targetElements
+		}, function(targetData, targetMenu)
+			local selectedValue = targetData.current.value
+			if selectedValue == 'all' then
+				ReviveTargetMarker.showHeadMarker = false
+				setReviveTargetMarker(nil)
+				doMassHeal(healRadius, billAmount)
+			else
+				local targetPlayer = tonumber(selectedValue)
+				if targetPlayer then
+					ReviveTargetMarker.showHeadMarker = true
+					setReviveTargetMarker(targetPlayer)
+					doSingleHeal(targetPlayer, billAmount)
+				end
+			end
+			safeCloseMenu(targetMenu)
+			clearReviveTargetMarker()
+		end, function(_, targetMenu)
+			safeCloseMenu(targetMenu)
+			clearReviveTargetMarker()
+			if AmbulanceMenuState.open then
+				AmbulanceMenuState.level = 'submenu'
+			end
+		end, function(changeData, _)
+			if changeData.current.value == 'all' then
+				ReviveTargetMarker.showHeadMarker = false
+				setReviveTargetMarker(nil)
+			else
+				ReviveTargetMarker.showHeadMarker = true
+				setReviveTargetMarker(tonumber(changeData.current.value))
+			end
+		end)
 	end, function(_, menu)
 		safeCloseMenu(menu)
+		clearReviveTargetMarker()
 		if AmbulanceMenuState.open then
 			AmbulanceMenuState.level = 'main'
 		end
@@ -373,7 +553,6 @@ function OpenMobileAmbulanceActionsMenu()
 	AmbulanceMenuState.previousOpener = nil
 	El = {
 		{ label = 'ชุบชีวิต', value = 'revive_menu' },
-		{ label = 'ชุบชีวิตหมู่', value = 'revive_group_menu' },
 		{ label = 'ฉีดยา', value = 'heal_menu' },
 		{ label = 'ตรวจบัตรประชาชน', value = 'identity_card' },
 		{ label = 'นำคนไข้ขึนรถ', value = 'put_in_vehicle' },
@@ -398,8 +577,6 @@ function OpenMobileAmbulanceActionsMenu()
 			return
 		elseif data.current.value == 'revive_menu' then
 			OpenReviveTypeMenu()
-		elseif data.current.value == 'revive_group_menu' then
-			OpenMassReviveTypeMenu()
 		elseif data.current.value == 'heal_menu' then
 			OpenHealTypeMenu()
 		elseif data.current.value == 'identity_card' then
@@ -473,6 +650,39 @@ function FastTravel(coords, heading)
 		end
 	end)
 end
+
+
+CreateThread(function()
+	while true do
+		local isRangeVisible = ReviveTargetMarker.showRangeMarker and (ReviveTargetMarker.rangeRadius or 0.0) > 0.0
+		local isHeadVisible = ReviveTargetMarker.enabled and ReviveTargetMarker.showHeadMarker and ReviveTargetMarker.playerId
+
+		if isRangeVisible then
+			local playerCoords = GetEntityCoords(PlayerPedId())
+			local radius = ReviveTargetMarker.rangeRadius or 3.0
+			DrawMarker(1, playerCoords.x, playerCoords.y, playerCoords.z - 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+				radius * 2.0, radius * 2.0, 0.25, 80, 255, 80, 90, false, false, 2, false, nil, nil, false)
+		end
+
+		if isHeadVisible then
+			local targetPed = GetPlayerPed(ReviveTargetMarker.playerId)
+			if targetPed and targetPed ~= 0 and DoesEntityExist(targetPed) then
+				local boneIndex = GetPedBoneIndex(targetPed, 0x796e)
+				local markerCoords = GetPedBoneCoords(targetPed, boneIndex, 0.0, 0.0, 0.25)
+				DrawMarker(2, markerCoords.x, markerCoords.y, markerCoords.z + 0.15, 0.0, 0.0, 0.0, 0.0, 180.0, 0.0,
+					0.18, 0.18, 0.18, 80, 255, 80, 190, false, true, 2, false, nil, nil, false)
+			else
+				setReviveTargetMarker(nil)
+			end
+		end
+
+		if isRangeVisible or isHeadVisible then
+			Wait(0)
+		else
+			Wait(250)
+		end
+	end
+end)
 
 -- Draw markers & Marker logic
 Citizen.CreateThread(function()
@@ -1240,13 +1450,7 @@ function OpenCreateBilling(player)
 					return
 				end
 				TriggerServerEvent('esx_billing:sendBill', GetPlayerServerId(player), 'society_ambulance', tonumber(data.current.value), 'Fine: Ambulance')
-				TriggerEvent("pNotify:SendNotification", {
-					text = 'Send Fine To Player Id ' .. GetPlayerServerId(player),
-					type = "success",
-					timeout = 3000,
-					layout = "bottomCenter",
-					queue = "global"
-				})
+				pushNotify('Send Fine To Player Id ' .. GetPlayerServerId(player), 'success', 3000)
 				safeCloseMenu(menu)
 			end
 		end, function(data, menu)

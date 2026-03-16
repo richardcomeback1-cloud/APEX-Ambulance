@@ -20,3 +20,6 @@ Config.BillingMenu.Heal = {
     single = { label = 'ฉีดยาเดี่ยว', value = 500 },
     mass = { label = 'ฉีดยาหมู่', value = 500 },
 }
+
+Config.BillingMenu.ReviveSelectRadius = 3.0 -- ระยะสำหรับเมนูเลือกชุบ (เมตร) และวง Marker รอบตัวหมอ
+Config.BillingMenu.HealSelectRadius = 3.0 -- ระยะสำหรับเมนูเลือกฉีดยา (เมตร) และวง Marker รอบตัวหมอ
